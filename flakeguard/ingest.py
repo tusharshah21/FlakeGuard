@@ -20,7 +20,7 @@ def cell_of(job_name: str) -> str | None:
 # One observation per (run, cell, test) is the contract, so duplicates collapse with this precedence, in this order.
 # ponytail: pass-then-teardown-error is usually a resource leak, not flakiness; we collapse it to 'fail' today and
 # name that as a known simplification in the README. Split it out if teardown errors ever matter on their own.
-PRECEDENCE = ("fail", "pass")
+PRECEDENCE = ("fail", "pass", "skip")   # a skip never outranks a real outcome; skip-only ids are not observations
 
 
 def resolve(outcomes: list[str]) -> str:
@@ -46,13 +46,14 @@ def parse_junit(blob: bytes) -> tuple[list[tuple[str, str]] | None, str | None, 
     seen = defaultdict(list)
     for tc in root.iter("testcase"):
         if tc.find("skipped") is not None:
-            continue
-        failed = tc.find("failure") is not None or tc.find("error") is not None
-        seen[f"{tc.get('classname')}::{tc.get('name')}"].append("fail" if failed else "pass")
+            o = "skip"
+        else:
+            o = "fail" if tc.find("failure") is not None or tc.find("error") is not None else "pass"
+        seen[f"{tc.get('classname')}::{tc.get('name')}"].append(o)
     for outcomes in seen.values():
         for a, b in zip(outcomes, outcomes[1:]):
             collapses[(a, b)] += 1
-    rows = [(tid, resolve(outcomes)) for tid, outcomes in seen.items()]
+    rows = [(tid, o) for tid, outcomes in seen.items() if (o := resolve(outcomes)) != "skip"]
     return (rows, None, collapses) if rows else (None, "zero testcases", collapses)
 
 

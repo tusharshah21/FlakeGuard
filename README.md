@@ -150,8 +150,12 @@ first-class statistic.
 - **Test-level history is 89 days deep.** GitHub retains artifacts for 90 days; runs outlive them. Anything
   older is job-level only (which cell failed, not which test).
 - GitHub Actions and pytest JUnit XML only. One workflow per repo.
-- Rosters for passing cells come from sampled artifacts, not from every run; a test added mid-window is
-  counted as passing from the nearest sampled roster onward.
+- **Inferred denominators inherit the roster assumption.** A pass in a succeeded cell is inferred from "the job
+  succeeded and the cell's nearest sampled roster contains this test", not read from a file. Most of any test's
+  `n` is inferred - the flake fixture is 156 measured / 2111 inferred - so its Wilson interval is only as sound as
+  that inference. Roster drift over the window is <= 6 tests added and 0 removed per cell, which is why the
+  assumption holds here; `n_measured` and `n_inferred` are carried separately into every piece of evidence so the
+  classifier can weigh it.
 
 ## Prior art and how this differs
 
