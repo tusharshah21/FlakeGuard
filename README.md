@@ -10,11 +10,31 @@ and rate limiting live in code, not in the model.
 
 ```sh
 uv sync
-cp .env.example .env   # fill in GITHUB_TOKEN + AWS creds
-uv run scripts/check_bedrock.py
+cp .env.example .env              # GITHUB_TOKEN (classic, public_repo scope) + Bedrock creds
+uv run scripts/check_bedrock.py   # one Bedrock call must succeed
+uv run python -m flakeguard ingest   # ~90 days of dask/distributed CI into flakeguard.db (~650 requests first time, cached after)
+uv run pytest                     # fixture <-> storage contract
+uv run scripts/reconcile.py       # storage must reproduce the probe's headline numbers exactly
 ```
 
 `dry_run = true` in `flakeguard.toml` until you point it at a scratch repo you own.
+
+## Data contract
+
+Every observation, whether read from storage or loaded from `fixtures/*.json`, has exactly this shape:
+
+```
+{run_id, head_sha, branch, event, started_at, cell, test_id, outcome, source}
+```
+
+`outcome` is `pass` or `fail` (skipped tests are not observations). `source` is `artifact` when the outcome was
+read from a JUnit file, `roster` when it is a pass inferred from a succeeded job plus the cell's nearest-in-time
+roster; inferred rows are derived at read time and never stored. The dedup key is `(run_id, test_id, cell)`. A
+pytest testcase that fails in both call and teardown appears twice in the XML and collapses to one `fail`.
+
+Per run-cell, ingestion records one of: `parsed` (artifact with failures), `roster` (job succeeded), `infra`
+(job failed, artifact has zero failing tests), `unresolved` (job failed, no usable artifact), `skipped`
+(cancelled). Nothing is dropped silently; `scripts/reconcile.py` prints the counts.
 
 ## License
 

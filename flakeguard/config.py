@@ -7,6 +7,17 @@ from pydantic import BaseModel
 class Target(BaseModel):
     repo: str
     scratch_repo: str
+    workflow: str
+    source: str
+    exclude_cell_prefixes: list[str]
+    same_commit_event: str
+    same_commit_branch: str
+
+
+class Ingest(BaseModel):
+    days: int
+    cache_dir: str
+    db_path: str
 
 
 class Triage(BaseModel):
@@ -24,6 +35,7 @@ class Bedrock(BaseModel):
 
 class Config(BaseModel):
     target: Target
+    ingest: Ingest
     triage: Triage
     bedrock: Bedrock
 

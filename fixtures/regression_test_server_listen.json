@@ -17,7 +17,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "macos-latest-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -27,7 +28,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-24.04-arm-py310-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -37,7 +39,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-24.04-arm-py311-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -47,7 +50,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-24.04-arm-py312-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -57,7 +61,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-24.04-arm-py313-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -67,7 +72,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-24.04-arm-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -77,7 +83,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-latest-py310-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -87,7 +94,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-latest-py310-test-noqueue-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -97,7 +105,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-latest-py311-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -107,7 +116,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-latest-py312-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -117,7 +127,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-latest-py313-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -127,7 +138,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "ubuntu-latest-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -137,7 +149,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "windows-latest-py310-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -147,7 +160,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "windows-latest-py311-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -157,7 +171,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "windows-latest-py312-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -167,7 +182,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "windows-latest-py313-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33311351646,
@@ -177,7 +193,8 @@
    "started_at": "2026-08-30T12:23:27Z",
    "cell": "windows-latest-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "fail"
+   "outcome": "fail",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -187,7 +204,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "macos-latest-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -197,7 +215,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-24.04-arm-py310-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -207,7 +226,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-24.04-arm-py311-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -217,7 +237,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-24.04-arm-py312-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -227,7 +248,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-24.04-arm-py313-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -237,7 +259,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-24.04-arm-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -247,7 +270,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-latest-py310-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -257,7 +281,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-latest-py310-test-noqueue-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -267,7 +292,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-latest-py311-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -277,7 +303,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-latest-py312-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -287,7 +314,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-latest-py313-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -297,7 +325,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "ubuntu-latest-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -307,7 +336,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "windows-latest-py310-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -317,7 +347,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "windows-latest-py311-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -327,7 +358,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "windows-latest-py312-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -337,7 +369,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "windows-latest-py313-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   },
   {
    "run_id": 33315565877,
@@ -347,7 +380,8 @@
    "started_at": "2026-08-30T13:57:46Z",
    "cell": "windows-latest-py314-test-ci-notci1",
    "test_id": "distributed.tests.test_core::test_server_listen",
-   "outcome": "pass"
+   "outcome": "pass",
+   "source": "artifact"
   }
  ],
  "failing_commit_files": [
