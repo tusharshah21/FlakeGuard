@@ -46,3 +46,17 @@ Artifact `pytest.xml` structure (run 34568247988, all 30 cells inspected):
   `schedule`. Commit `dc182bda54` ran **35 times**: 5 success / 30 failure. Identical code, 35 samples.
 - dask maintains `continuous_integration/scripts/test_report.py` - their own flaky-test report. Prior art
   and pitch validation in one.
+
+## Adjustments 1 & 2 (2026-09-12) - pre-bulk-download check
+
+Schedule-triggered `Tests` runs on `main`, last 95 days: **191 runs, 16 commits** (162 failure / 28 success / 1 cancelled).
+
+Runs per commit (desc): `78, 34, 24, 12, 9, 6, 6, 5, 4, 4, 3, 2, 1, 1, 1, 1`
+- >=2 runs: 12 commits   >=3: 11   >=5: 8   >=10: 4
+
+Not a spike plus singletons: four commits with n>=10 (78, 34, 24, 12) and eight with n>=5. Enough for Q2(b).
+
+Artifact horizon: oldest run with live artifacts is `27507912696` (2026-06-14T18:22Z) -> **test-level window = 89 days**,
+180 schedule Tests runs with live artifacts. Canonical cell `ubuntu-latest-py312-test-ci-notci1` is present in that
+oldest run and in the newest (`34677067059`). Runs carry 41 artifacts, not 30: the extra are `*_cluster_dumps` and
+`ubuntu-latest-mindeps-*` cells.
