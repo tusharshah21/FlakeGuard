@@ -49,11 +49,29 @@ many independent runs of identical code. That makes per-test flakiness a measure
 - *regression* — lower bound close to 1.0 (fails essentially always)
 - *masked flake* — interval strictly between 0 and 1
 - *chronic* — flake interval excludes 0 across >= 3 distinct commits
+- *environment break* — at a fixed commit, failures cluster in time rather than scatter (the code did not
+  change; the runner image, transitive deps or an upstream service did)
+- *platform-specific* — failures concentrated in one cell or OS across the matrix
 - *unclear* — `n` too small for the interval to separate the cases
 
 `n` and the bounds are pinned into the classifier prompt as evidence. The model interprets; it never computes.
 Same-commit comparison is restricted to `event = schedule`, `branch = main`, one canonical matrix cell; trigger,
 sha, branch and cell are first-class columns so the filter is explicit in every query.
+
+### The matrix is a failure multiplier
+
+Every one of dask/distributed's 34 test-matrix cells is ~98% green. Yet 162 of 191 scheduled runs go red. A
+34-cell matrix amplifies rare per-cell flakiness into near-constant failure: each cell flips its own coin, and
+the run fails when any one of them lands wrong. No single cell's history reveals this - restricted to one cell,
+89 days of data surfaced six tests that ever failed. Pooled across cells, the same window shows 19 tests that
+recover repeatedly across three or more commits. This is why per-cell dashboards miss the problem, and why
+cross-cell pooling is the right unit of analysis.
+
+Pooling has to be done carefully. Cells are not exchangeable (different OS, different Python), so a test that
+fails on every Windows run and nowhere else would read as a tidy 9% flake if pooled blindly. FlakeGuard
+stratifies first: per-cell counts are kept, a simple dispersion check (share of failures in the top cell / top
+OS, number of cells with any failure) decides whether failures are spread or concentrated, and only spread
+failures are pooled. Concentrated ones are a fifth category, *platform-specific*.
 
 ## Prior art and how this differs
 

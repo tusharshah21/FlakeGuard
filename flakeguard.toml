@@ -4,9 +4,9 @@
 repo = "dask/distributed"
 scratch_repo = ""  # owner/name of a repo you own; Phase 5 opens real issues/PRs here
 workflow = "tests.yaml"
-source = "junit_artifacts"                          # Source A; see probe-results/
-canonical_cell = "ubuntu-latest-py312-test-ci-notci1"  # one matrix cell ingested across the full window
-exclude_cell_prefixes = ["ubuntu-latest-mindeps-"]  # distinct dependency env; secondary sample only
+source = "junit_artifacts"                          # Source A, pooled across matrix cells; see probe-results/
+exclude_cell_prefixes = ["ubuntu-latest-mindeps-"]  # distinct dependency env; never pooled with the rest
+roster_samples_per_cell = 3                         # passing artifacts sampled per cell to learn its test roster
 same_commit_event = "schedule"                      # cron re-runs of identical code on main
 same_commit_branch = "main"
 
