@@ -22,6 +22,11 @@ platform_top_cell_share = 0.75  # >= this share of failures in one cell -> conce
 platform_top_os_share = 0.8     # >= this share of failures on one OS -> concentrated
 chronic_min_commits = 3         # spread recoveries across this many commits -> chronic
 
+[classify]
+# Shared by baseline.py and the classifier prompt. Applied to the most recent commit with any failure.
+regression_ci_low = 0.5   # Wilson lower bound at/above this -> regression
+flaky_ci_high = 0.1       # Wilson upper bound at/below this -> flaky
+
 [triage]
 window_runs = 50
 min_runs = 15

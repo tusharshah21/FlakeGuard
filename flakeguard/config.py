@@ -29,6 +29,11 @@ class Stats(BaseModel):
     chronic_min_commits: int
 
 
+class Classify(BaseModel):
+    regression_ci_low: float
+    flaky_ci_high: float
+
+
 class Triage(BaseModel):
     window_runs: int
     min_runs: int
@@ -46,6 +51,7 @@ class Config(BaseModel):
     target: Target
     ingest: Ingest
     stats: Stats
+    classify: Classify
     triage: Triage
     bedrock: Bedrock
 
