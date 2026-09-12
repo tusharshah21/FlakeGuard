@@ -1,0 +1,16 @@
+# FlakeGuard configuration. All thresholds are enforced in Python, never by the model.
+
+[target]
+repo = ""          # owner/name of the public repo to analyse (Phase 0 decision)
+scratch_repo = ""  # owner/name of a repo you own; Phase 5 opens real issues/PRs here
+
+[triage]
+window_runs = 50
+min_runs = 15
+action_threshold = 0.75
+unquarantine_after_passes = 20
+dry_run = true
+
+[bedrock]
+model_id = "global.anthropic.claude-sonnet-4-6"  # strands default; override per region
+region = "us-east-1"
