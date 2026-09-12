@@ -1,0 +1,364 @@
+{
+ "name": "regression_test_server_listen",
+ "expected_verdict": "regression",
+ "repo": "dask/distributed",
+ "test_id": "distributed.tests.test_core::test_server_listen",
+ "pull_request": 9356,
+ "pull_request_title": "Avoid external IP lookup for inproc addresses",
+ "failing_sha": "25eb507474495e441b7955e805d5a05077140544",
+ "fix_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+ "note": "Pre-existing test on main (passes in every scheduled run). PR #9356 commit 25eb507474 changed distributed/comm/inproc.py and broke test_server_listen in all 17 cells of its partition (n=17, Wilson 95% lower bound 0.816); the next commit a4b5b644ac, 94 minutes later, changed inproc.py again and updated distributed/tests/test_core.py, after which it passed in all 17 cells. Verify: https://github.com/dask/distributed/actions/runs/33311351646 and .../33315565877",
+ "observations": [
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "macos-latest-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-24.04-arm-py310-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-24.04-arm-py311-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-24.04-arm-py312-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-24.04-arm-py313-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-24.04-arm-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-latest-py310-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-latest-py310-test-noqueue-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-latest-py311-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-latest-py312-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-latest-py313-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "ubuntu-latest-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "windows-latest-py310-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "windows-latest-py311-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "windows-latest-py312-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "windows-latest-py313-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33311351646,
+   "head_sha": "25eb507474495e441b7955e805d5a05077140544",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T12:23:27Z",
+   "cell": "windows-latest-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "macos-latest-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-24.04-arm-py310-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-24.04-arm-py311-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-24.04-arm-py312-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-24.04-arm-py313-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-24.04-arm-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-latest-py310-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-latest-py310-test-noqueue-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-latest-py311-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-latest-py312-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-latest-py313-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "ubuntu-latest-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "windows-latest-py310-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "windows-latest-py311-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "windows-latest-py312-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "windows-latest-py313-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 33315565877,
+   "head_sha": "a4b5b644acd62a75344bd4c1069a86f136d81d0f",
+   "branch": "fix-localcluster-offline-warning",
+   "event": "pull_request",
+   "started_at": "2026-08-30T13:57:46Z",
+   "cell": "windows-latest-py314-test-ci-notci1",
+   "test_id": "distributed.tests.test_core::test_server_listen",
+   "outcome": "pass"
+  }
+ ],
+ "failing_commit_files": [
+  "distributed/comm/inproc.py",
+  "distributed/comm/tests/test_comms.py",
+  "distributed/deploy/tests/test_local.py"
+ ],
+ "fix_commit_files": [
+  "distributed/comm/inproc.py",
+  "distributed/comm/tests/test_comms.py",
+  "distributed/deploy/tests/test_local.py",
+  "distributed/tests/test_core.py"
+ ]
+}

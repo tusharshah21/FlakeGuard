@@ -73,6 +73,24 @@ stratifies first: per-cell counts are kept, a simple dispersion check (share of 
 OS, number of cells with any failure) decides whether failures are spread or concentrated, and only spread
 failures are pooled. Concentrated ones are a fifth category, *platform-specific*.
 
+### Zero always-failing tests is itself a finding
+
+Across 95 days of scheduled runs on `main` there were **zero** tests that failed at every run of a commit.
+dask's problem is not broken tests. It is that a 34-cell matrix converts a ~2% per-test flake rate into an ~85%
+run failure rate. The failures are real, reproducible in aggregate, and invisible in any single cell.
+
+Regressions do exist - on PR branches, where they get fixed within hours and never reach `main`. The Phase 2
+regression fixture (`fixtures/regression_test_server_listen.json`) is one such case: PR #9356 broke
+`test_core::test_server_listen` in all 17 cells at one commit and fixed it in the next.
+
+## Limitations
+
+- **Test-level history is 89 days deep.** GitHub retains artifacts for 90 days; runs outlive them. Anything
+  older is job-level only (which cell failed, not which test).
+- GitHub Actions and pytest JUnit XML only. One workflow per repo.
+- Rosters for passing cells come from sampled artifacts, not from every run; a test added mid-window is
+  counted as passing from the nearest sampled roster onward.
+
 ## Prior art and how this differs
 
 dask/distributed ships its own hand-rolled flaky-test report (`continuous_integration/scripts/test_report.py`).

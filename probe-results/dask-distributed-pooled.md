@@ -60,3 +60,27 @@ REPO: dask/distributed   pooled over 34 cells, 191 schedule runs on main
 - `fails_always` = 0: no regression on `main` during the window in scheduled runs. Expected for a stable trunk;
   the regression fixture for Phase 2 will need to come from a PR branch or be found on a wider window.
 - Q2(a) = 183, Q2(b) = 19. **Suitable. Source A, pooled across cells, stratified per cell.**
+
+## Window boundary (stated plainly)
+
+The 32 UNRESOLVED run-cells are all on the 13 scheduled runs older than 2026-06-14, past the 90-day artifact
+retention. **Test-level window = 89 days. Older than that is job-level only.** Recorded in README limitations.
+
+## Regression fixture (2026-09-12) - approach B, PR branches
+
+Ranked 113 failed PR runs by failed-cell count. Regressions fail a whole partition (17 cells); flakes fail 1-3.
+Chosen: `distributed.tests.test_core::test_server_listen`, PR #9356 "Avoid external IP lookup for inproc addresses"
+(branch `mmaxjr:fix-localcluster-offline-warning`).
+
+| sha | run | fail | pass | n | Wilson 95% |
+|---|---|---|---|---|---|
+| `25eb507474` (changed `comm/inproc.py`) | 33311351646 | 17 | 0 | 17 | [0.816, 1.000] |
+| `a4b5b644ac` (fix, +`tests/test_core.py`) | 33315565877 | 0 | 17 | 17 | [0.000, 0.184] |
+
+Test pre-exists on main and passes there. Failing cells: every cell of the `notci1` partition, all 4 OSes, all 5
+Pythons. The other two failures at the fix sha (`test_web_preload_worker` on arm-py311, `test_clear_events_worker_removal`
+on windows-py310) are single-cell flakes, not related. Lower bound 0.816 vs masked-flake upper bounds <= 0.05.
+
+Other clean candidates seen, kept for reserve: `test_client::test_scatter_namedtuple` (9bb1b25092, 17/17),
+`test_local_env::test_bad_executable` + `test_job_submission` (c9af892796, 17/17 each),
+`test_actor::test_serialize_with_pickle` + 2 more (9ce93727b7, 17/17 each, both partitions).
