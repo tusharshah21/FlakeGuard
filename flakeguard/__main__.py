@@ -21,6 +21,7 @@ elif cmd == "health":
     print(f"{h.test_id}\n  window {h.window_start[:10]}..{h.window_end[:10]}  runs={h.runs} commits={len(h.commits)}")
     print(f"  n={h.n} (measured {h.n_measured}, inferred {h.n_inferred})  fails={h.fails}  p_hat={h.p_hat:.4f}  wilson95=[{h.ci_low:.3f}, {h.ci_high:.3f}]")
     print(f"  cells_failed/cells_total={h.cells_failed}/{h.cells_total}  max_consecutive_failing_runs={h.max_consecutive_failing_runs}")
+    print(f"  top_cell_share={h.top_cell_share:.2f}  top_os={h.top_os}({h.top_os_share:.2f})  concentrated={h.concentrated}")
     print(f"  recovery_commits={h.recovery_commits}  spread_recovery_commits={h.spread_recovery_commits}  chronic={h.chronic}")
     if h.largest_shift:
         s = h.largest_shift

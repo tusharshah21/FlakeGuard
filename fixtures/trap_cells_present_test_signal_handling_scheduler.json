@@ -1,0 +1,207 @@
+{
+ "name": "trap_cells_present_test_signal_handling_scheduler",
+ "expected_verdict": "regression",
+ "repo": "dask/distributed",
+ "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+ "note": "PR branch feat/issue-8000-client-address-logs. This test is skipped on Windows, so it exists in 9 of the partition's 17 cells. At 7e97188336 it passed in all 9; at acf771d460 it failed in all 9 (Wilson [0.70, 1.0]). A rule that divides by 17 sees 9/17 and hesitates; the correct denominator is cells_present = 9, and 9/9 is a regression.",
+ "observations": [
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "macos-latest-py314-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-24.04-arm-py311-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-24.04-arm-py312-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-24.04-arm-py313-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-24.04-arm-py314-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-latest-py311-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-latest-py312-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-latest-py313-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27728534830,
+   "head_sha": "7e97188336efa9ead9fa1600fbe83a2ac1df4229",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-18T00:26:10Z",
+   "cell": "ubuntu-latest-py314-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "pass",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "macos-latest-py314-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-24.04-arm-py311-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-24.04-arm-py312-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-24.04-arm-py313-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-24.04-arm-py314-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-latest-py311-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-latest-py312-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-latest-py313-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  },
+  {
+   "run_id": 27832261885,
+   "head_sha": "acf771d460b331118a7a66e9fb9e7bf24b8cd381",
+   "branch": "feat/issue-8000-client-address-logs",
+   "event": "pull_request",
+   "started_at": "2026-06-19T14:42:05Z",
+   "cell": "ubuntu-latest-py314-test-ci-notci1",
+   "test_id": "distributed.cli.tests.test_dask_spec::test_signal_handling_scheduler[2]",
+   "outcome": "fail",
+   "source": "artifact"
+  }
+ ]
+}

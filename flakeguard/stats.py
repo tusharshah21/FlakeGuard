@@ -84,9 +84,13 @@ class TestHealth:
     ci_high: float
     cells_total: int
     cells_failed: int
+    top_cell_share: float                   # share of all failures in the single worst cell
+    top_os: str | None
+    top_os_share: float
+    concentrated: bool                      # test-level dispersion rule, same thresholds as per commit
     max_consecutive_failing_runs: int
     recovery_commits: int                   # commits with both a fail and a pass
-    spread_recovery_commits: int            # recoveries whose failures were not concentrated in one cell/OS
+    spread_recovery_commits: int            # recoveries at commits where neither the commit nor the test is concentrated
     chronic: bool                           # spread_recovery_commits >= chronic_min_commits
     largest_shift: Split | None             # biggest change in failure rate between consecutive commits
     onset_sha: str | None                   # largest_shift.at_sha when the shift is a rise >= min_onset_effect
@@ -116,6 +120,20 @@ def best_split(groups: list[tuple[str, str, int, int]]) -> Split | None:
     return best
 
 
+def dispersion(fail_cells: dict[str, int], cells_present: int, t: Thresholds) -> tuple[float, str | None, float, bool]:
+    """(top_cell_share, top_os, top_os_share, concentrated) from per-cell failure counts."""
+    fails = sum(fail_cells.values())
+    top_cell_share = max(fail_cells.values()) / fails if fails else 0.0
+    os_fails = Counter()
+    for c, k in fail_cells.items():
+        os_fails[os_of(c)] += k
+    top_os, top_os_fails = (os_fails.most_common(1)[0] if os_fails else (None, 0))
+    top_os_share = top_os_fails / fails if fails else 0.0
+    concentrated = (fails >= t.platform_min_fails and cells_present > 1
+                    and (top_cell_share >= t.platform_top_cell_share or top_os_share >= t.platform_top_os_share))
+    return top_cell_share, top_os, top_os_share, concentrated
+
+
 def commit_stats(sha: str, rows: list[dict], t: Thresholds) -> CommitStats:
     per_cell = defaultdict(lambda: [0, 0])
     per_run = defaultdict(lambda: [0, 0])
@@ -132,15 +150,8 @@ def commit_stats(sha: str, rows: list[dict], t: Thresholds) -> CommitStats:
     n = len(rows)
     fails = sum(v[0] for v in per_cell.values())
     fail_cells = {c: v[0] for c, v in per_cell.items() if v[0]}
-    top_cell_share = max(fail_cells.values()) / fails if fails else 0.0
-    os_fails = Counter()
-    for c, k in fail_cells.items():
-        os_fails[os_of(c)] += k
-    top_os, top_os_fails = (os_fails.most_common(1)[0] if os_fails else (None, 0))
-    top_os_share = top_os_fails / fails if fails else 0.0
+    top_cell_share, top_os, top_os_share, concentrated = dispersion(fail_cells, len(per_cell), t)
     lo, hi = wilson(fails, n, t.z)
-    concentrated = (fails >= t.platform_min_fails and len(per_cell) > 1
-                    and (top_cell_share >= t.platform_top_cell_share or top_os_share >= t.platform_top_os_share))
     runs_chrono = sorted(per_run, key=run_started.get)
     temporal = best_split([(sha, run_started[rid], per_run[rid][0], per_run[rid][1]) for rid in runs_chrono])
     starts = sorted(run_started.values())
@@ -168,7 +179,8 @@ def test_health(rows: list[dict], t: Thresholds) -> TestHealth:
     fails = sum(c.fails for c in commits)
     lo, hi = wilson(fails, n, t.z)
     cells = {r["cell"] for r in rows}
-    fail_cells = {r["cell"] for r in rows if r["outcome"] == "fail"}
+    fail_cells = Counter(r["cell"] for r in rows if r["outcome"] == "fail")
+    top_cell_share, top_os, top_os_share, concentrated = dispersion(fail_cells, len(cells), t)
 
     run_failed = defaultdict(bool)
     run_started = {}
@@ -181,14 +193,15 @@ def test_health(rows: list[dict], t: Thresholds) -> TestHealth:
         best = max(best, streak)
 
     recoveries = [c for c in commits if c.recovery]
-    spread = [c for c in recoveries if not c.concentrated]
+    spread = [] if concentrated else [c for c in recoveries if not c.concentrated]
     shift = best_split([(c.head_sha, c.first_started_at, c.fails, c.n) for c in commits])
     onset = shift.at_sha if shift and shift.shift >= t.min_onset_effect else None
     return TestHealth(
         test_id=test_id, window_start=min(run_started.values()), window_end=max(run_started.values()),
         runs=len(run_failed), n=n, n_measured=sum(c.n_measured for c in commits), n_inferred=sum(c.n_inferred for c in commits),
         fails=fails, p_hat=_rate(fails, n), ci_low=lo, ci_high=hi,
-        cells_total=len(cells), cells_failed=len(fail_cells), max_consecutive_failing_runs=best,
+        cells_total=len(cells), cells_failed=len(fail_cells), top_cell_share=top_cell_share, top_os=top_os,
+        top_os_share=top_os_share, concentrated=concentrated, max_consecutive_failing_runs=best,
         recovery_commits=len(recoveries), spread_recovery_commits=len(spread),
         chronic=len(spread) >= t.chronic_min_commits, largest_shift=shift, onset_sha=onset, commits=commits,
     )
