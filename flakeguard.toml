@@ -14,6 +14,14 @@ days = 95                        # backfill window; artifacts only survive ~90 o
 cache_dir = ".cache/artifacts"   # raw zips + API listings; parsing never re-downloads
 db_path = "flakeguard.db"
 
+[stats]
+z = 1.96                        # 95% Wilson interval
+min_onset_effect = 0.2          # rise in failure rate between consecutive commits that counts as an onset
+platform_min_fails = 3          # below this, dispersion is uninformative
+platform_top_cell_share = 0.75  # >= this share of failures in one cell -> concentrated
+platform_top_os_share = 0.8     # >= this share of failures on one OS -> concentrated
+chronic_min_commits = 3         # spread recoveries across this many commits -> chronic
+
 [triage]
 window_runs = 50
 min_runs = 15

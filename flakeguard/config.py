@@ -20,6 +20,15 @@ class Ingest(BaseModel):
     db_path: str
 
 
+class Stats(BaseModel):
+    z: float
+    min_onset_effect: float
+    platform_min_fails: int
+    platform_top_cell_share: float
+    platform_top_os_share: float
+    chronic_min_commits: int
+
+
 class Triage(BaseModel):
     window_runs: int
     min_runs: int
@@ -36,6 +45,7 @@ class Bedrock(BaseModel):
 class Config(BaseModel):
     target: Target
     ingest: Ingest
+    stats: Stats
     triage: Triage
     bedrock: Bedrock
 

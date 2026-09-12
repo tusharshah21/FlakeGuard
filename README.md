@@ -26,7 +26,8 @@ uv sync
 cp .env.example .env              # GITHUB_TOKEN (classic, public_repo scope) + Bedrock creds
 uv run scripts/check_bedrock.py   # one Bedrock call must succeed
 uv run python -m flakeguard ingest   # ~90 days of dask/distributed CI into flakeguard.db (~650 requests first time, cached after)
-uv run pytest                     # fixture <-> storage contract
+uv run pytest                     # fixture <-> storage contract, JUnit collapse rule, stats over the three fixtures
+uv run python -m flakeguard health fixtures/regression_test_get_client.json   # or a test_id, read from storage
 uv run scripts/reconcile.py       # storage must reproduce the probe's headline numbers exactly
 ```
 
@@ -92,7 +93,13 @@ many independent runs of identical code. That makes per-test flakiness a measure
 - *platform-specific* — failures concentrated in one cell or OS across the matrix
 - *unclear* — `n` too small for the interval to separate the cases
 
-`n` and the bounds are pinned into the classifier prompt as evidence. The model interprets; it never computes.
+`flakeguard/stats.py` (no `strands` import, enforced by a test) computes per test and per commit: `n` split into
+`n_measured` (read from a JUnit file) and `n_inferred` (roster), `p_hat`, the Wilson interval, `cells_failed /
+cells_total`, per-cell counts, top-cell and top-OS failure share, recovery commits (both a fail and a pass at one
+commit), spread recoveries (not concentrated in one cell or OS), the chronic flag, the largest shift in failure
+rate between consecutive commits (an onset when it is a rise), and the largest within-commit shift over time (the
+environment-break signal). Every threshold comes from `[stats]` in `flakeguard.toml`; the module has none of its
+own. `n` and the bounds are pinned into the classifier prompt as evidence. The model interprets; it never computes.
 
 **Causal direction is guarded.** The correlation agent (Phase 4) receives only the *failing* commit's metadata and
 file list - never the fix commit's. A test asserts that `fix_sha` and `fix_commit_files` are absent from
