@@ -1,8 +1,14 @@
 # FlakeGuard configuration. All thresholds are enforced in Python, never by the model.
 
 [target]
-repo = ""          # owner/name of the public repo to analyse (Phase 0 decision)
+repo = "dask/distributed"
 scratch_repo = ""  # owner/name of a repo you own; Phase 5 opens real issues/PRs here
+workflow = "tests.yaml"
+source = "junit_artifacts"                          # Source A; see probe-results/
+canonical_cell = "ubuntu-latest-py312-test-ci-notci1"  # one matrix cell ingested across the full window
+exclude_cell_prefixes = ["ubuntu-latest-mindeps-"]  # distinct dependency env; secondary sample only
+same_commit_event = "schedule"                      # cron re-runs of identical code on main
+same_commit_branch = "main"
 
 [triage]
 window_runs = 50
