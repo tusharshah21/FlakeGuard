@@ -84,3 +84,12 @@ on windows-py310) are single-cell flakes, not related. Lower bound 0.816 vs mask
 Other clean candidates seen, kept for reserve: `test_client::test_scatter_namedtuple` (9bb1b25092, 17/17),
 `test_local_env::test_bad_executable` + `test_job_submission` (c9af892796, 17/17 each),
 `test_actor::test_serialize_with_pickle` + 2 more (9ce93727b7, 17/17 each, both partitions).
+
+## Reserve-candidate check (2026-09-12)
+
+| branch | failing sha (files) | fix sha (files) | broken tests on main? | verdict |
+|---|---|---|---|---|
+| `fix/propagate-task-annotations` PR #9340 | `9ce93727b7` (`worker.py`, `tests/test_worker_client.py`) | `696800cc91` (same two files) | yes, 3 tests, 17/17 each | **primary** - fix never touched the broken tests |
+| `fix-localcluster-offline-warning` PR #9356 | `25eb507474` (`comm/inproc.py`) | `a4b5b644ac` (+ `tests/test_core.py`) | yes | second case - fix also updated the test |
+| `fix-scatter-collection-subclass` | `9bb1b25092` (`client.py`) | `038d3b59d8` (+ `tests/test_client.py`) | yes | same shape as #9356, not promoted |
+| `venv_cluster` | `c9af892796` (`deploy/local_env.py`) | - | **no** - new tests in the PR | discarded, not a regression |

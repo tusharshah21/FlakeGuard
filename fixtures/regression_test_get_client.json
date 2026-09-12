@@ -1,0 +1,365 @@
+{
+ "name": "regression_test_get_client",
+ "expected_verdict": "regression",
+ "repo": "dask/distributed",
+ "test_id": "distributed.tests.test_worker::test_get_client",
+ "pull_request": 9340,
+ "pull_request_title": "[unsupervised AI] fix: propagate task annotations during worker execution",
+ "failing_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+ "fix_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+ "failing_commit_files": [
+  "distributed/tests/test_worker_client.py",
+  "distributed/worker.py"
+ ],
+ "fix_commit_files": [
+  "distributed/tests/test_worker_client.py",
+  "distributed/worker.py"
+ ],
+ "sibling_tests_broken_by_same_commit": [
+  "distributed.tests.test_client::test_secede_balances",
+  "distributed.tests.test_actor::test_serialize_with_pickle"
+ ],
+ "note": "Pre-existing test on main. PR commit 9ce93727b7 'Propagate task annotations during worker execution' changed distributed/worker.py (and the PR's own new test file test_worker_client.py) and broke three unrelated pre-existing tests in every cell of their partition. The fix 696800cc91 'Avoid propagating task control annotations' changed worker.py again; none of the broken tests' files were edited. Verify: https://github.com/dask/distributed/actions/runs/30925383561 and .../30970740435",
+ "observations": [
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "macos-latest-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-24.04-arm-py310-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-24.04-arm-py311-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-24.04-arm-py312-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-24.04-arm-py313-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-24.04-arm-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-latest-py310-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-latest-py310-test-noqueue-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-latest-py311-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-latest-py312-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-latest-py313-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "ubuntu-latest-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "windows-latest-py310-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "windows-latest-py311-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "windows-latest-py312-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "windows-latest-py313-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30925383561,
+   "head_sha": "9ce93727b79e096e3547fd5bed7ea68b2f061f2d",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-04T15:40:59Z",
+   "cell": "windows-latest-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "fail"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "macos-latest-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-24.04-arm-py310-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-24.04-arm-py311-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-24.04-arm-py312-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-24.04-arm-py313-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-24.04-arm-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-latest-py310-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-latest-py310-test-noqueue-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-latest-py311-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-latest-py312-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-latest-py313-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "ubuntu-latest-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "windows-latest-py310-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "windows-latest-py311-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "windows-latest-py312-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "windows-latest-py313-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  },
+  {
+   "run_id": 30970740435,
+   "head_sha": "696800cc9151a13764673fe71345f9e37e74bf7b",
+   "branch": "fix/propagate-task-annotations",
+   "event": "pull_request",
+   "started_at": "2026-08-05T02:55:22Z",
+   "cell": "windows-latest-py314-test-ci-ci1",
+   "test_id": "distributed.tests.test_worker::test_get_client",
+   "outcome": "pass"
+  }
+ ]
+}

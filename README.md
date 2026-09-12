@@ -55,6 +55,10 @@ many independent runs of identical code. That makes per-test flakiness a measure
 - *unclear* — `n` too small for the interval to separate the cases
 
 `n` and the bounds are pinned into the classifier prompt as evidence. The model interprets; it never computes.
+
+**Causal direction is guarded.** The correlation agent (Phase 4) receives only the *failing* commit's metadata and
+file list - never the fix commit's. A test asserts that `fix_sha` and `fix_commit_files` are absent from
+everything the agent is shown. If they ever leak, the agent is reasoning backward from the answer.
 Same-commit comparison is restricted to `event = schedule`, `branch = main`, one canonical matrix cell; trigger,
 sha, branch and cell are first-class columns so the filter is explicit in every query.
 
@@ -79,9 +83,22 @@ Across 95 days of scheduled runs on `main` there were **zero** tests that failed
 dask's problem is not broken tests. It is that a 34-cell matrix converts a ~2% per-test flake rate into an ~85%
 run failure rate. The failures are real, reproducible in aggregate, and invisible in any single cell.
 
-Regressions do exist - on PR branches, where they get fixed within hours and never reach `main`. The Phase 2
-regression fixture (`fixtures/regression_test_server_listen.json`) is one such case: PR #9356 broke
-`test_core::test_server_listen` in all 17 cells at one commit and fixed it in the next.
+Regressions do exist - on PR branches, where they get fixed within hours and never reach `main`. The two
+regression fixtures come from there:
+
+- `fixtures/regression_test_get_client.json` (primary): PR #9340 changed `distributed/worker.py` and broke three
+  unrelated pre-existing tests in every cell of their partition; the fix changed `worker.py` again and touched
+  none of the broken tests. The tests recovered purely because the source changed back.
+- `fixtures/regression_test_server_listen.json`: PR #9356 changed `distributed/comm/inproc.py` and broke
+  `test_core::test_server_listen` in all 17 cells; the fix changed `inproc.py` and, legitimately, the test's
+  expectation. The interesting second case: the agent must still point at the source file.
+
+### Regressions fail a partition; flakes fail a cell or three
+
+Found while searching for the fixtures, and a structural property of the data: every 17/17 failure in 113 failed
+PR runs was a regression, and every masked flake on `main` failed in 1-3 cells. `cells_failed / cells_total` at a
+commit is therefore a strong prior on category before any probability is computed, and `stats.py` reports it as a
+first-class statistic.
 
 ## Limitations
 
