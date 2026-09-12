@@ -1,7 +1,7 @@
 """Ingestion: GitHub Actions runs -> per-cell job conclusions -> JUnit artifacts -> observations. No LLM here."""
 import io
 import zipfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from xml.etree import ElementTree
 
@@ -16,27 +16,44 @@ def cell_of(job_name: str) -> str | None:
     return "-".join(p[:3] + ["".join(p[3:])]) if len(p) >= 4 else None
 
 
-def parse_junit(blob: bytes) -> tuple[list[tuple[str, str]] | None, str | None]:
-    """-> ([(test_id, 'pass'|'fail')], None) or (None, reason). Skipped testcases are not observations."""
+# A test id can appear more than once in one JUnit file (pytest emits a second <testcase> for a teardown error).
+# One observation per (run, cell, test) is the contract, so duplicates collapse with this precedence, in this order.
+# ponytail: pass-then-teardown-error is usually a resource leak, not flakiness; we collapse it to 'fail' today and
+# name that as a known simplification in the README. Split it out if teardown errors ever matter on their own.
+PRECEDENCE = ("fail", "pass")
+
+
+def resolve(outcomes: list[str]) -> str:
+    return min(outcomes, key=PRECEDENCE.index)
+
+
+def parse_junit(blob: bytes) -> tuple[list[tuple[str, str]] | None, str | None, Counter]:
+    """-> ([(test_id, 'pass'|'fail')], None, collapses) or (None, reason, collapses).
+    Skipped testcases are not observations. `collapses` counts duplicate ids by (first_outcome, second_outcome)."""
+    collapses = Counter()
     try:
         z = zipfile.ZipFile(io.BytesIO(blob))
         xmls = [n for n in z.namelist() if n.endswith(".xml")]
         if not xmls:
-            return None, "no xml in zip"
+            return None, "no xml in zip", collapses
         root = ElementTree.fromstring(z.read(xmls[0]))
     except zipfile.BadZipFile:
-        return None, "bad zip"
+        return None, "bad zip", collapses
     except ElementTree.ParseError:
-        return None, "xml parse error"
+        return None, "xml parse error", collapses
     if root.find(".//testsuite") is None:
-        return None, "no testsuite element"
-    rows = []
+        return None, "no testsuite element", collapses
+    seen = defaultdict(list)
     for tc in root.iter("testcase"):
         if tc.find("skipped") is not None:
             continue
         failed = tc.find("failure") is not None or tc.find("error") is not None
-        rows.append((f"{tc.get('classname')}::{tc.get('name')}", "fail" if failed else "pass"))
-    return (rows, None) if rows else (None, "zero testcases")
+        seen[f"{tc.get('classname')}::{tc.get('name')}"].append("fail" if failed else "pass")
+    for outcomes in seen.values():
+        for a, b in zip(outcomes, outcomes[1:]):
+            collapses[(a, b)] += 1
+    rows = [(tid, resolve(outcomes)) for tid, outcomes in seen.items()]
+    return (rows, None, collapses) if rows else (None, "zero testcases", collapses)
 
 
 def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
@@ -52,7 +69,7 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
         return {"run_id": r["id"], "head_sha": r["head_sha"], "branch": r["head_branch"],
                 "event": r["event"], "started_at": r["run_started_at"]}
 
-    counts, run_cells, obs = defaultdict(int), [], []
+    counts, run_cells, obs, collapses = defaultdict(int), [], [], Counter()
     succeeded = defaultdict(list)  # cell -> [(started_at, run, artifact)] for roster sampling
     for r in runs:
         arts = {a["name"]: a for a in gh.artifacts(r["id"]) if not a["expired"]}
@@ -70,7 +87,8 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
             elif c not in arts:
                 rc["status"] = "unresolved"
             else:
-                rows, why = parse_junit(gh.artifact_zip(arts[c]))
+                rows, why, col = parse_junit(gh.artifact_zip(arts[c]))
+                collapses += col
                 if why:
                     rc["status"] = "unresolved"
                     counts[f"parse:{why}"] += 1
@@ -83,14 +101,14 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
             run_cells.append(rc)
     store.upsert_run_cells(run_cells)
     store.upsert_observations(obs)
-    log(f"run-cells: {dict(counts)}; artifact observations: {len(obs)}")
+    log(f"run-cells: {dict(counts)}; artifact observations: {len(obs)}; duplicate testcase collapses: {dict(collapses)}")
 
     # rosters: oldest, middle and newest passing artifact per cell (drift over 89 days is <= 6 tests added, 0 removed)
     for c, items in succeeded.items():
         items.sort(key=lambda x: x[0])
         for i in sorted({0, len(items) // 2, len(items) - 1}):
             started_at, r, a = items[i]
-            rows, why = parse_junit(gh.artifact_zip(a))
+            rows, why, _ = parse_junit(gh.artifact_zip(a))
             if why:
                 counts[f"roster-parse:{why}"] += 1
                 continue

@@ -6,6 +6,19 @@ Autonomous flaky-test triage agent for GitHub Actions + pytest, built on the Str
 are computed in Python and pinned into prompts as ground truth. Scheduling, idempotency, deduplication
 and rate limiting live in code, not in the model.
 
+## Why now
+
+On 2026-08-04, dask/distributed PR #9340, titled "[unsupervised AI] fix: propagate task annotations during
+worker execution", changed `distributed/worker.py`. At that commit three pre-existing tests in other modules -
+`test_worker::test_get_client`, `test_client::test_secede_balances`, `test_actor::test_serialize_with_pickle` -
+failed in 17 of 17 cells each, across both matrix partitions, all four operating systems and all five Python
+versions. The next commit changed `worker.py` again and all three passed 17/17. None of the three test files
+were edited. Runs [30925383561](https://github.com/dask/distributed/actions/runs/30925383561) and
+[30970740435](https://github.com/dask/distributed/actions/runs/30970740435).
+
+The volume of machine-generated changes is rising faster than review capacity. Triage that is automatic,
+evidence-based and reversible is how a CI signal stays trustworthy under that load.
+
 ## Setup
 
 ```sh
@@ -29,8 +42,13 @@ Every observation, whether read from storage or loaded from `fixtures/*.json`, h
 
 `outcome` is `pass` or `fail` (skipped tests are not observations). `source` is `artifact` when the outcome was
 read from a JUnit file, `roster` when it is a pass inferred from a succeeded job plus the cell's nearest-in-time
-roster; inferred rows are derived at read time and never stored. The dedup key is `(run_id, test_id, cell)`. A
-pytest testcase that fails in both call and teardown appears twice in the XML and collapses to one `fail`.
+roster; inferred rows are derived at read time and never stored. The dedup key is `(run_id, test_id, cell)`.
+
+A test id can appear twice in one JUnit file: pytest emits a second `<testcase>` when teardown errors after the
+call. Duplicates collapse with an explicit precedence, `fail > pass`, so the stored outcome does not depend on
+parse order; every collapse is counted by `(first, second)` pair and reported by the ingest. **Known
+simplification:** a pass-then-teardown-error is a distinct phenomenon - usually a resource leak, not flakiness -
+and today it is collapsed to `fail`. In the current data all 3 collapses are `(fail, fail)`.
 
 Per run-cell, ingestion records one of: `parsed` (artifact with failures), `roster` (job succeeded), `infra`
 (job failed, artifact has zero failing tests), `unresolved` (job failed, no usable artifact), `skipped`
