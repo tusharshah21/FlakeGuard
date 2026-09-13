@@ -13,6 +13,7 @@ TITLE = "[REPLAY] [FlakeGuard] {test_id}"
 REVIEW_TITLE = "[REPLAY] [FlakeGuard] Review queue"
 OVERRIDE_LABEL = "flakeguard-override"
 REPLAY_LABEL = "flakeguard-replay"
+SUPERSEDED_LABEL = "flakeguard-superseded"   # an operator closed it to redo, not to disagree; does not block recreation
 PROTECTED_BASES = {"main", "master", ""}
 QUARANTINE_FILE = ".flakeguard/quarantine.txt"
 CONFTEST = "conftest.py"
@@ -53,7 +54,7 @@ class Remote:
     def ensure_label(self, name: str, color: str, description: str) -> None: ...
     def comment(self, number: int, body: str) -> str: ...
     def labels_anywhere(self, title: str) -> set[str]: ...  # labels on any open or closed issue/PR with this title
-    def closed_titled(self, title: str) -> bool: ...        # a closed issue or PR with exactly this title exists
+    def closed_titled(self, title: str) -> list[set[str]]: ...  # label sets of closed issues/PRs with exactly this title
     def default_branch(self) -> str: ...
     def head_sha(self, branch: str) -> str: ...
     def create_branch(self, name: str, from_sha: str) -> None: ...
@@ -96,7 +97,7 @@ class MemoryRemote(Remote):
         return set().union(*(x["labels"] for x in self.issues + self.prs if x["title"] == title), set())
 
     def closed_titled(self, title):
-        return any(x["title"] == title and x["state"] == "closed" for x in self.issues + self.prs)
+        return [x["labels"] for x in self.issues + self.prs if x["title"] == title and x["state"] == "closed"]
 
     def default_branch(self): return "main"
 
@@ -155,7 +156,7 @@ class GitHubRemote(Remote):
         return set().union(*(self._d(i)["labels"] for i in self.repo.get_issues(state="all") if i.title == title), set())
 
     def closed_titled(self, title):
-        return any(i.title == title for i in self.repo.get_issues(state="closed"))  # PRs are issues too on this endpoint
+        return [{l.name for l in i.labels} for i in self.repo.get_issues(state="closed") if i.title == title]  # PRs are issues here too
 
     def default_branch(self): return self.repo.default_branch
     def head_sha(self, branch): return self.repo.get_branch(branch).commit.sha
@@ -223,6 +224,10 @@ class Actions:
             raise RuntimeError(f"refusing to open a PR against {base!r}: scratch_branch must be a dedicated non-main branch")
         return base
 
+    def _human_closed(self, title: str) -> bool:
+        """A closed artifact with this title is a human decision unless an operator labelled it superseded."""
+        return any(SUPERSEDED_LABEL not in labels for labels in self.remote.closed_titled(title))
+
     def _ensure_labels(self):
         if not self._labels_ready:
             self.remote.ensure_label(REPLAY_LABEL, "1d76db", "Agent-generated replay artifact from FlakeGuard; see README")
@@ -245,7 +250,7 @@ class Actions:
         if existing:
             url = self.remote.comment(existing["number"], body)
             return Outcome("issue_comment", url, f"commented on existing issue #{existing['number']}")
-        if self.remote.closed_titled(title):
+        if self._human_closed(title):
             return Outcome("closed_by_human", None, "a human closed the previous issue; not recreated, disagreement recorded")
         self._ensure_labels()
         i = self.remote.create_issue(title, self._stamp("", body)[1], [REPLAY_LABEL])
@@ -262,7 +267,7 @@ class Actions:
         existing = next((p for p in self.remote.open_prs() if p["head"] == branch), None)
         if existing:
             return Outcome("noop", existing["html_url"], f"PR #{existing['number']} already open for this branch")
-        if self.remote.closed_titled(title):
+        if self._human_closed(title):
             return Outcome("closed_by_human", None, "a human closed the previous PR; not recreated, disagreement recorded")
         assert base == self.cfg.target.scratch_branch and base.lower() not in PROTECTED_BASES
         self.remote.create_branch(branch, self.remote.head_sha(base))

@@ -198,7 +198,8 @@ def unquarantine_pass() -> list[tuple[str, int, Outcome]]:
             "If you want the test to stay quarantined, close this PR and apply the label `flakeguard-override`.",
         ])
         out = r.actions.open_unquarantine_pr(test_id, body, span=f"{quarantined_at[:10]} -> {r.today}")
-        r.store.record_decision(test_id, r.now, None, None, "unquarantine_pr", f"{clean} clean runs since quarantine", out.url, r.actions.dry)
+        recorded = out.kind if out.kind == "closed_by_human" else "unquarantine_pr"   # the ledger records what happened
+        r.store.record_decision(test_id, r.now, None, None, recorded, f"{clean} clean runs since quarantine -> {out.detail}", out.url, r.actions.dry)
         results.append((test_id, clean, out))
     return results
 

@@ -367,14 +367,17 @@ Against this repository's `scratch` branch, `dry_run = false`, raw logs in `prob
 | (a) sweep: platform case, chronic flake, ambiguous case | issue [#1](https://github.com/tusharshah21/FlakeGuard/issues/1) (platform_specific @ 0.95); quarantine PR [#2](https://github.com/tusharshah21/FlakeGuard/pull/2) (chronic @ 0.85); review-queue issue [#3](https://github.com/tusharshah21/FlakeGuard/issues/3), one comment (12 runs < `min_runs`, never reached the model). 4 model calls. |
 | (b) the same sweep, same day | all three `none` - "already triaged today". **0 artifacts, 0 model calls.** Review queue still one comment. |
 | (c) replay, clock at 2026-08-25 | `test_handle_null_partitions_2`, whose real last failure was 2026-08-24, classified chronic @ 0.85 on 156 runs -> quarantine PR [#4](https://github.com/tusharshah21/FlakeGuard/pull/4), titled `[REPLAY as of 2026-08-25]`. 2 model calls. |
-| (c) replay, clock at 2026-09-13 | 35 consecutive clean runs since quarantine >= 20 -> un-quarantine PR [#5](https://github.com/tusharshah21/FlakeGuard/pull/5), titled `[REPLAY 2026-08-25 -> 2026-09-13]`. **The agent reversed itself, on real data, with 0 model calls.** |
+| (c) replay, clock at 2026-09-13 | 35 consecutive clean runs since quarantine >= 20 -> un-quarantine PR, titled `[REPLAY 2026-08-25 -> 2026-09-13]`. **The agent reversed itself, on real data, with 0 model calls.** First opened as [#5](https://github.com/tusharshah21/FlakeGuard/pull/5) while #4 was unmerged; a human then merged #4 (the agent never merges) and the replay was re-run as [#7](https://github.com/tusharshah21/FlakeGuard/pull/7): one file, one line removed. |
 | (d) a human closes issue #1; sweep with a next-day clock | verdict unchanged, gate says issue, action layer finds the closed issue -> `closed_by_human`, nothing recreated, disagreement recorded. |
 
 Total for the run: 8 model calls, roughly $0.10. Every PR targets `scratch`; `conftest.py` and `.flakeguard/quarantine.txt` are absent from `main` and from `scratch` itself.
 
-Two things behaved differently live than against the in-memory double, both recorded rather than hidden:
-- **The quarantine hook appears in both quarantine PRs** (#2 and #4). Each PR branches off `scratch`, which does not carry the hook until something merges, so each independently adds it. The two copies are byte-identical and merge cleanly, but "created exactly once" holds per merged state, not per open PR.
-- **The un-quarantine PR's diff is against an unmerged quarantine.** PR #5 removes the line relative to PR #4's branch; against `scratch`, where #4 never merged, its diff shows the list without the test. In a deployment the quarantine PR is merged before recovery is measured, so the diff reads as a removal.
+Things that behaved differently live than against the in-memory double, all recorded rather than hidden:
+- **Open PRs each carried the quarantine hook** (#2 and #4) because each branched off `scratch` before anything merged. Once a human merged #4, the hook exists exactly once in the merged state - which is what the invariant claims - and the re-run un-quarantine PR #7 is a literal one-line removal. #5 was closed by the operators with a note pointing at #7 and labelled `flakeguard-superseded`.
+- **`closed_by_human` blocked the operators' own redo.** Closing #5 to replace it looked to the agent like a disagreement, exactly as designed. The escape hatch is a label, `flakeguard-superseded`, on the closed artifact; without it, a closed FlakeGuard issue or PR is never recreated.
+- **The ledger recorded intent, not outcome,** in two places (a blocked issue recorded as `issue`, a blocked un-quarantine as `unquarantine_pr`). Both now record what happened.
+
+**Issue identity is title-based - an operational caveat.** Cross-day idempotency ("comment on the existing issue, never open a duplicate") works by exact title match, because a dated title would defeat it. Issue titles therefore carry a date-free `[REPLAY]` prefix, and **editing a FlakeGuard issue's title by hand will cause the next sweep to open a new one.** We renamed #1 and #3 live to add the prefix and then verified the matcher resolves them: a next-day sweep commented on renamed #3 rather than opening a second queue, and the `closed_by_human` check matched renamed #1.
 
 ## The denominator under every interval is validated
 
