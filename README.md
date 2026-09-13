@@ -255,6 +255,34 @@ zero failures before a boundary, a material rate after, across cells. We searche
 day spikes, and no test's failures begin on a date. The statistic (`within_commit_over_time`) and the category
 (`environment_break`) are implemented; the data contains no instance; we did not fabricate one.
 
+## From verdict to artifact (Phase 4)
+
+`flakeguard/orchestrator.py` runs a fixed pipeline: health -> classify -> (regression only) commit context +
+correlation -> draft. The steps are Strands tools - classifier, correlation and drafter are agents behind tool
+functions, health and commit context are deterministic - but the sequence is Python, not a prompt, and **every tool
+takes only a test id**. No tool accepts a sha, a file list or a verdict from a caller, so nothing one model says can
+steer what another model is shown.
+
+The correlation agent reasons forward. It sees the message and changed files of the commit under investigation -
+the most recent commit with a failure, derived from the data by `baseline.episode()` - and nothing after it.
+`tests/test_leakage.py` was committed before the agent existed and asserts, for both regression fixtures, that the
+prompt contains neither the fix commit's sha nor any file only the fix touched, and that `build_prompt` has no
+parameter through which fix information could arrive. On PR #9340 the artifact names `distributed/worker.py` from
+the failing commit's two files (`probe-results/artifacts/regression_test_get_client.md`).
+
+The drafter's shape is fixed: Verdict / Evidence / Reasoning / Conflicting signals / Correlation / Recommended
+action / How to override. The Evidence section is the exact block the classifier saw, pasted by code. Reasoning and
+Conflicting signals are the classifier's text verbatim. A small drafter agent writes only the opening summary and
+one paragraph refining the recommended action, and is checked for numbers that appear in neither the evidence nor
+its input. On the PR-branch miss the artifact opens with "classified ... as a regression with low confidence", names
+the Windows concentration in the first three sentences, and the correlation step reports no plausible cause
+(`probe-results/artifacts/conflict_platform_pr_test_bad_executable.md`) - the conflict is on the surface, not
+behind the verdict.
+
+"How to override" is not decoration: an agent that touches a repository must say how to tell it it was wrong. Two
+mechanisms are named - `[overrides] ignore_tests` in config, or the `flakeguard-override` label - and Phase 5
+implements both.
+
 ## The denominator under every interval is validated
 
 Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster
@@ -275,6 +303,10 @@ could not honestly build a conflict fixture where it misleads.
 - **Test-level history is 89 days deep.** GitHub retains artifacts for 90 days; runs outlive them. Anything
   older is job-level only (which cell failed, not which test).
 - GitHub Actions and pytest JUnit XML only. One workflow per repo.
+- **Correlation looks at the latest failing commit, not the onset commit.** On a branch where a regression is
+  being fixed over several commits, the most recent failing commit may be an unrelated change (on `venv_cluster`
+  it was a one-line `pyproject.toml` edit) and correlation correctly reports "no plausible cause" while the real
+  cause sits three commits earlier. Walking back to the onset commit is the obvious extension.
 - **Truncated artifacts are not detected.** When pytest dies mid-session the artifact holds a fraction of the
   cell's usual testcases (run `28571672400`: 1,152 of ~2,700). The failure mode is safe - tests that never ran
   produce no observation, never a false pass - but `stats.py` does not flag or down-weight a run-cell whose

@@ -42,7 +42,6 @@ elif cmd == "triage":
     sys.stdout.reconfigure(encoding="utf-8")
     print(t.artifact)
     if t.invented_numbers:
-        print(f"
-<!-- drafter introduced numbers not in its input: {t.invented_numbers} -->", file=sys.stderr)
+        print(f"<!-- drafter introduced numbers not in its input: {t.invented_numbers} -->", file=sys.stderr)
 else:
     sys.exit(f"unknown command {cmd!r}")
