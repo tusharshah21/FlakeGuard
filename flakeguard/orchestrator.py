@@ -131,9 +131,12 @@ def gate_state(test_id: str) -> dict:
             "overridden": r.actions.overridden(test_id), "today": r.today}
 
 
-def triage(test_id: str) -> Triage:
-    """health -> gate pre-check -> classify -> (regression only) commit context + correlate -> gate -> draft.
-    The gate runs before the classifier so that cases it will block anyway cost no model call."""
+def triage(test_id: str, budget: list[int] | None = None) -> Triage:
+    """health -> gate pre-check -> artifact-budget check -> classify -> (regression only) correlate -> gate -> draft.
+
+    Both cheap checks run before the classifier. The gate disposes of cases no verdict could change; the artifact
+    budget disposes of cases no verdict could act on. Two budgets guarding different resources only compose if the
+    cheaper one runs first - see the README."""
     r = rt()
     h = health(test_id)
     state = gate_state(test_id)
@@ -141,6 +144,13 @@ def triage(test_id: str) -> Triage:
     if pre.action == "none" or (pre.action == "review" and "min_runs" in pre.reason):
         evidence = render_evidence(h, r.cfg)
         return Triage(test_id, h, None, evidence, None, None, pre, review_note(test_id, evidence, pre), [])
+    if budget is not None and budget[0] <= 0:
+        # No artifact budget left, so no verdict could act. Spend nothing on inference; defer, and stay eligible
+        # next sweep - deferral is not a triage decision, so the one-per-day rule must not swallow it.
+        d = Decision("deferred", f"max_actions_per_sweep = {r.cfg.triage.max_actions_per_sweep} reached earlier in this "
+                                 f"sweep; not classified, deferred to the next sweep")
+        evidence = render_evidence(h, r.cfg)
+        return Triage(test_id, h, None, evidence, None, None, d, review_note(test_id, evidence, d), [])
     cls, evidence = classify(h, r.cfg)
     corr, ctx = None, None
     if cls.verdict == "regression":
@@ -161,10 +171,9 @@ def act(t: Triage, budget: list[int] | None = None) -> Outcome:
     mutable counter; make it a Sweep object if the sweep grows more state."""
     r = rt()
     a = t.decision.action
-    if a in ("issue", "quarantine_pr") and budget is not None and budget[0] <= 0:
-        out = Outcome("deferred", None, f"max_actions_per_sweep = {r.cfg.triage.max_actions_per_sweep} reached; deferred to the next sweep")
-        r.store.record_decision(t.test_id, r.now, t.classification.verdict, t.classification.confidence, "deferred",
-                                f"{t.decision.reason} -> {out.detail}", None, r.actions.dry)
+    if a == "deferred":
+        out = Outcome("deferred", None, t.decision.reason)
+        r.store.record_decision(t.test_id, r.now, None, None, "deferred", t.decision.reason, None, r.actions.dry)
         t.outcome = out
         return out
     if a == "issue":
@@ -175,8 +184,8 @@ def act(t: Triage, budget: list[int] | None = None) -> Outcome:
         out = r.actions.review(t.test_id, r.today, t.artifact)
     else:
         out = Outcome("noop", None, t.decision.reason)
-    if budget is not None and out.kind in ("issue", "quarantine_pr"):
-        budget[0] -= 1
+    if budget is not None and a in ("issue", "quarantine_pr") and out.kind not in ("closed_by_human",):
+        budget[0] -= 1   # counts intent, not medium: a dry run must exercise the same cap a live run enforces
     recorded = out.kind if out.kind == "closed_by_human" else a   # the ledger records what happened, not what was intended
     r.store.record_decision(t.test_id, r.now, t.classification and t.classification.verdict,
                             t.classification and t.classification.confidence, recorded, f"{t.decision.reason} -> {out.detail}", out.url, r.actions.dry)
@@ -222,7 +231,7 @@ def sweep(test_ids: list[str], log=print) -> list[Triage]:
     budget = [r.cfg.triage.max_actions_per_sweep]
     for test_id in test_ids:
         try:
-            t = triage(test_id)
+            t = triage(test_id, budget)
         except ModelBudgetExceeded as e:
             # Hard stop. Record it where the gate and the operator will both see it, then fail loudly: an unattended
             # sweep that runs away is worse than one that goes red.

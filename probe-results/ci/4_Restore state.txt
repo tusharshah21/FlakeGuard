@@ -1,0 +1,22 @@
+﻿2026-09-13T09:10:23.9573568Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:10:23.9574561Z ##[group]Run actions/cache/restore@v4
+2026-09-13T09:10:23.9574792Z with:
+2026-09-13T09:10:23.9574973Z   path: flakeguard.db
+.cache/artifacts
+
+2026-09-13T09:10:23.9575236Z   key: flakeguard-state-34748961534
+2026-09-13T09:10:23.9575462Z   restore-keys: flakeguard-state-
+2026-09-13T09:10:23.9575688Z   enableCrossOsArchive: false
+2026-09-13T09:10:23.9575895Z   fail-on-cache-miss: false
+2026-09-13T09:10:23.9576089Z   lookup-only: false
+2026-09-13T09:10:23.9576266Z env:
+2026-09-13T09:10:23.9576689Z   GITHUB_TOKEN: ***
+2026-09-13T09:10:23.9577339Z   AWS_BEARER_TOKEN_BEDROCK: ***
+2026-09-13T09:10:23.9578315Z   AWS_DEFAULT_REGION: us-east-1
+2026-09-13T09:10:23.9578544Z   UV_PYTHON: 3.12
+2026-09-13T09:10:23.9578820Z   VIRTUAL_ENV: /home/runner/work/FlakeGuard/FlakeGuard/.venv
+2026-09-13T09:10:23.9579155Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-09-13T09:10:23.9579415Z ##[endgroup]
+2026-09-13T09:10:24.0447631Z (node:2140) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:10:24.0448643Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:10:24.2378891Z Cache not found for input keys: flakeguard-state-34748961534, flakeguard-state-

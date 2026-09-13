@@ -1,0 +1,11 @@
+﻿2026-09-13T09:10:24.2491554Z ##[group]Run sed -i "s/^dry_run = .*/dry_run = true/" flakeguard.toml
+2026-09-13T09:10:24.2492035Z [36;1msed -i "s/^dry_run = .*/dry_run = true/" flakeguard.toml[0m
+2026-09-13T09:10:24.2527094Z shell: /usr/bin/bash -e {0}
+2026-09-13T09:10:24.2527346Z env:
+2026-09-13T09:10:24.2527994Z   GITHUB_TOKEN: ***
+2026-09-13T09:10:24.2528659Z   AWS_BEARER_TOKEN_BEDROCK: ***
+2026-09-13T09:10:24.2528888Z   AWS_DEFAULT_REGION: us-east-1
+2026-09-13T09:10:24.2529091Z   UV_PYTHON: 3.12
+2026-09-13T09:10:24.2529321Z   VIRTUAL_ENV: /home/runner/work/FlakeGuard/FlakeGuard/.venv
+2026-09-13T09:10:24.2529639Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-09-13T09:10:24.2529885Z ##[endgroup]

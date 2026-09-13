@@ -105,7 +105,10 @@ class Storage:
 
     def last_real_decision_on(self, test_id: str) -> str | None:
         """Most recent day on which a non-dry-run decision was recorded for this test."""
-        r = self.db.execute("SELECT MAX(decided_on) FROM triage_decisions WHERE test_id = ? AND dry_run = 0", (test_id,)).fetchone()
+        # 'deferred' and 'aborted' are not decisions about the test - the sweep simply never got to it - so they
+        # must not trigger the one-decision-per-day rule on the next sweep.
+        r = self.db.execute("SELECT MAX(decided_on) FROM triage_decisions WHERE test_id = ? AND dry_run = 0 "
+                            "AND action NOT IN ('deferred', 'aborted')", (test_id,)).fetchone()
         return r[0]
 
     def quarantined_at(self, test_id: str) -> str | None:

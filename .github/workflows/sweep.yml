@@ -59,9 +59,13 @@ jobs:
         run: uv run python -m flakeguard ingest
 
       - name: Sweep recently failing tests
+        # pipefail: without it bash reports tee's status and an aborted sweep reads as a green step.
+        shell: bash -o pipefail -e {0}
         run: uv run python -m flakeguard sweep --recent | tee sweep.log
 
       - name: Decision ledger for this run
+        if: always()   # the ledger is most useful precisely when the sweep aborted
+        shell: bash -o pipefail -e {0}
         run: uv run python -m flakeguard decisions "$(date -u +%F)" | tee -a sweep.log
 
       - name: Save state

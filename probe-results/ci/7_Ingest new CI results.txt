@@ -1,0 +1,14 @@
+﻿2026-09-13T09:10:25.4733966Z ##[group]Run uv run python -m flakeguard ingest
+2026-09-13T09:10:25.4734297Z [36;1muv run python -m flakeguard ingest[0m
+2026-09-13T09:10:25.4767009Z shell: /usr/bin/bash -e {0}
+2026-09-13T09:10:25.4767230Z env:
+2026-09-13T09:10:25.4768844Z   GITHUB_TOKEN: ***
+2026-09-13T09:10:25.4769485Z   AWS_BEARER_TOKEN_BEDROCK: ***
+2026-09-13T09:10:25.4769715Z   AWS_DEFAULT_REGION: us-east-1
+2026-09-13T09:10:25.4769912Z   UV_PYTHON: 3.12
+2026-09-13T09:10:25.4770140Z   VIRTUAL_ENV: /home/runner/work/FlakeGuard/FlakeGuard/.venv
+2026-09-13T09:10:25.4770444Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-09-13T09:10:25.4770693Z ##[endgroup]
+2026-09-13T09:25:36.4624267Z 191 completed schedule runs of tests.yaml on main since 2026-06-10
+2026-09-13T09:25:36.4624960Z run-cells: {'roster': 6116, 'unresolved': 34, 'parsed': 320, 'infra': 9, 'skipped': 15}; artifact observations: 703264; duplicate testcase collapses: {('fail', 'fail'): 3}
+2026-09-13T09:25:36.4625525Z rosters: 199810 rows over 34 cells; requests used: 816

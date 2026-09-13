@@ -1,0 +1,25 @@
+﻿2026-09-13T09:10:24.2641441Z ##[group]Run uv run python -m flakeguard ledger import state/decisions.json
+2026-09-13T09:10:24.2641881Z [36;1muv run python -m flakeguard ledger import state/decisions.json[0m
+2026-09-13T09:10:24.2672989Z shell: /usr/bin/bash -e {0}
+2026-09-13T09:10:24.2673220Z env:
+2026-09-13T09:10:24.2673609Z   GITHUB_TOKEN: ***
+2026-09-13T09:10:24.2674236Z   AWS_BEARER_TOKEN_BEDROCK: ***
+2026-09-13T09:10:24.2674467Z   AWS_DEFAULT_REGION: us-east-1
+2026-09-13T09:10:24.2674667Z   UV_PYTHON: 3.12
+2026-09-13T09:10:24.2674895Z   VIRTUAL_ENV: /home/runner/work/FlakeGuard/FlakeGuard/.venv
+2026-09-13T09:10:24.2675225Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-09-13T09:10:24.2675499Z ##[endgroup]
+2026-09-13T09:10:24.3243344Z    Building flakeguard @ file:///home/runner/work/FlakeGuard/FlakeGuard
+2026-09-13T09:10:24.3890216Z Downloading pydantic-core (2.0MiB)
+2026-09-13T09:10:24.3894784Z Downloading cryptography (4.5MiB)
+2026-09-13T09:10:24.3899203Z Downloading pynacl (1.3MiB)
+2026-09-13T09:10:24.3899986Z Downloading botocore (15.1MiB)
+2026-09-13T09:10:24.3903885Z Downloading pygments (1.2MiB)
+2026-09-13T09:10:24.5106112Z  Downloaded pynacl
+2026-09-13T09:10:24.5106815Z  Downloaded pydantic-core
+2026-09-13T09:10:24.5107383Z  Downloaded pygments
+2026-09-13T09:10:24.5262543Z  Downloaded cryptography
+2026-09-13T09:10:24.5910714Z  Downloaded botocore
+2026-09-13T09:10:24.7779941Z       Built flakeguard @ file:///home/runner/work/FlakeGuard/FlakeGuard
+2026-09-13T09:10:24.8504050Z Installed 57 packages in 70ms
+2026-09-13T09:10:25.4367661Z imported 10 new decisions

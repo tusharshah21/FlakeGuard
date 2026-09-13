@@ -108,5 +108,16 @@
   "reason": "Only 12 runs in the window, below min_runs = 15; routed to review, nothing touched. -> queued on issue #3",
   "url": "https://github.com/tusharshah21/FlakeGuard/issues/3#issuecomment-5652203212",
   "dry_run": 0
+ },
+ {
+  "test_id": "distributed.tests.test_gc::test_gc_diagnosis_cpu_time",
+  "decided_on": "2026-09-25",
+  "decided_at": "2026-09-25T06:00:00Z",
+  "verdict": "platform_specific",
+  "confidence": 0.92,
+  "action": "issue",
+  "reason": "Verdict platform_specific at confidence 0.92 clears action_threshold = 0.75 with 191 runs in the window; FlakeGuard will open an issue. -> opened issue #8",
+  "url": "https://github.com/tusharshah21/FlakeGuard/issues/8",
+  "dry_run": 0
  }
 ]

@@ -201,3 +201,31 @@ def test_model_call_ceiling_aborts_the_sweep_loudly(world, monkeypatch):
     assert store.decisions()[-1]["action"] == "aborted"
     assert "sweep aborted" in store.decisions()[-1]["reason"]
     assert len(remote.prs) == 1                # the first case acted before the ceiling; the second never ran
+
+
+def test_artifact_budget_stops_inference_not_just_actions(world, monkeypatch):
+    """Two budgets guarding different resources compose only if the cheaper check runs first: once the artifact cap
+    is spent, further candidates must cost zero model calls and stay eligible for the next sweep."""
+    from flakeguard.classifier import MODEL_CALLS
+
+    run, remote, store, calls = world
+    for k in MODEL_CALLS:
+        MODEL_CALLS[k] = 0
+    orch.configure(orch.rt().cfg if orch._rt else None, FIXTURES, remote=remote, store=store,
+                   as_of="2026-09-13T23:59:59Z", log=lambda *_: None) if orch._rt else None
+    run("2026-09-12", [])                       # prime the runtime
+    orch.rt().cfg.triage.max_actions_per_sweep = 1
+
+    ts = run("2026-09-13", [FLAKE, PLATFORM, AMBIG])
+    by = {t.test_id: t for t in ts}
+    assert by[FLAKE].outcome.kind == "quarantine_pr"          # first actionable case spends its 1 artifact
+    assert by[PLATFORM].decision.action == "deferred" and by[PLATFORM].classification is None
+    assert "max_actions_per_sweep" in by[PLATFORM].decision.reason
+    assert calls["classify"] == 1                             # deferred case cost no inference
+    assert by[AMBIG].decision.action == "review"              # review needs no artifact budget and still runs
+
+    # deferred is not a decision: the next sweep triages it normally
+    assert store.last_real_decision_on(PLATFORM) is None
+    orch.rt().cfg.triage.max_actions_per_sweep = 3
+    ts = run("2026-09-14", [PLATFORM])
+    assert ts[0].outcome.kind == "issue" and calls["classify"] == 2

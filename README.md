@@ -387,11 +387,24 @@ turned on deliberately after a reviewed manual dispatch). Each run restores the 
 `actions/cache`, imports the committed decision ledger (`state/decisions.json`, existing rows win), ingests any new
 CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Three limits live in code, not in the prompt. Only tests with a failure in the last `recent_failure_days` are
 triaged. At most `max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable
-cases are recorded as `deferred` and picked up next time. And `max_model_calls_per_sweep` is a hard ceiling on
-model calls - classification, correlation and drafting alike, since the artifact cap does not bound inference: if a
-cache restore fails and the sweep re-triages everything unattended, the run stops at the ceiling, records an
-`aborted` row in the ledger naming the count reached, and exits non-zero so the Actions run goes visibly red rather
-than quietly expensive. Writes use a personal access token scoped to public repositories; the workflow's
+cases are recorded as `deferred` and picked up next time. And `max_model_calls_per_sweep` is a hard ceiling on model calls -
+classification, correlation and drafting alike: if something goes wrong and a sweep runs away unattended, it stops
+at the ceiling, records an `aborted` row in the ledger naming the count reached, and exits non-zero so the Actions
+run goes visibly red rather than quietly expensive. In normal operation a sweep spends about two calls per
+acted-on test, so the default of 30 is headroom rather than a working limit.
+
+### Two budgets only compose if the cheaper check runs first
+
+The first unattended run taught us this by doing the wrong thing in public. The artifact cap sat in `act()`, after
+the classifier had already run: **a dry-run sweep spent 30 model calls to decline 15 actions**, hit the inference
+ceiling, and aborted three tests short of finishing. The cap guarded artifacts; the money was spent upstream of it.
+
+The fix is ordering, not a new limit. `triage()` now consults the artifact budget *before* the classifier: if no
+artifact can be created, no verdict could act, so nothing is spent on inference. A test skipped this way is recorded
+as `deferred` with that reason and is explicitly **not** a triage decision - `last_real_decision_on()` ignores
+`deferred` and `aborted` rows, so the one-decision-per-day rule does not swallow it and the next sweep picks it up
+normally. The same ordering principle is why the gate's cheap checks (`min_runs`, already-triaged, overridden) run
+before the model at all. Writes use a personal access token scoped to public repositories; the workflow's
 own token stays read-only. This is what "runs autonomously in the background and surfaces only when there is a
 decision" means here: the schedule is GitHub's, the gate is Python's, and the model is consulted only for tests the
 gate has not already disposed of.

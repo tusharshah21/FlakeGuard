@@ -1,0 +1,23 @@
+﻿2026-09-13T09:28:36.3936035Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-13T09:28:36.3937002Z ##[group]Run actions/cache/save@v4
+2026-09-13T09:28:36.3937213Z with:
+2026-09-13T09:28:36.3937393Z   path: flakeguard.db
+.cache/artifacts
+
+2026-09-13T09:28:36.3937876Z   key: flakeguard-state-34748961534
+2026-09-13T09:28:36.3938094Z   enableCrossOsArchive: false
+2026-09-13T09:28:36.3938285Z env:
+2026-09-13T09:28:36.3938614Z   GITHUB_TOKEN: ***
+2026-09-13T09:28:36.3939235Z   AWS_BEARER_TOKEN_BEDROCK: ***
+2026-09-13T09:28:36.3939452Z   AWS_DEFAULT_REGION: us-east-1
+2026-09-13T09:28:36.3939649Z   UV_PYTHON: 3.12
+2026-09-13T09:28:36.3939873Z   VIRTUAL_ENV: /home/runner/work/FlakeGuard/FlakeGuard/.venv
+2026-09-13T09:28:36.3940169Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-09-13T09:28:36.3940439Z ##[endgroup]
+2026-09-13T09:28:36.4791106Z (node:2534) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-13T09:28:36.4792082Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-13T09:28:36.5023113Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/FlakeGuard/FlakeGuard --files-from manifest.txt --use-compress-program zstdmt
+2026-09-13T09:28:37.1542639Z (node:2534) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-13T09:28:38.1488616Z Sent 38600704 of 44918545 (85.9%), 36.8 MBs/sec
+2026-09-13T09:28:38.3369266Z Sent 44918545 of 44918545 (100.0%), 36.0 MBs/sec
+2026-09-13T09:28:38.4768557Z Cache saved with key: flakeguard-state-34748961534
