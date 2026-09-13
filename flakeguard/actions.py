@@ -174,9 +174,7 @@ class Actions:
         if not self.replay:
             return title, body
         label = f"[REPLAY {span or 'as of ' + self.replay}]"
-        return f"{label} {title}", f"{label} {REPLAY_NOTE}
-
-{body}"
+        return f"{label} {title}", f"{label} {REPLAY_NOTE}\n\n{body}"
 
     def _dry(self, what) -> Outcome:
         self.log(f"[dry-run] would {what} in {self.cfg.target.scratch_repo or '<scratch_repo unset>'}")
