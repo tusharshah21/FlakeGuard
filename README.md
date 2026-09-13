@@ -33,7 +33,8 @@ evidence-based and reversible is how a CI signal stays trustworthy under that lo
 
 ## The finding: a test matrix is a failure multiplier
 
-Every one of dask/distributed's 34 test-matrix cells is ~98% green. Yet 162 of 191 scheduled runs go red. A
+Individual matrix-cell runs pass 94.4% of the time (6,119 of 6,479 cell-runs; per-cell range 77.9% to 99.5%).
+Yet 162 of 191 scheduled runs go red. A
 34-cell matrix amplifies rare per-cell flakiness into near-constant failure: each cell flips its own coin, and
 the run fails when any one of them lands wrong. No single cell's history reveals this - restricted to one cell,
 89 days of data surfaced six tests that ever failed. Pooled across cells, the same window shows 19 tests that
