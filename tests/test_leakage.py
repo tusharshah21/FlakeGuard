@@ -39,8 +39,14 @@ def test_correlation_prompt_never_sees_the_fix(path):
     prompt = build_prompt(fx["test_id"], h, ctx, cfg)
 
     assert fx["fix_sha"] not in prompt and fx["fix_sha"][:10] not in prompt and fx["fix_sha"][:7] not in prompt
-    for f in set(fx["fix_commit_files"]) - set(fx["failing_commit_files"]):
+    # The test's own module path is derivable from the test id alone, so it is not fix information even when the fix
+    # commit edited it (PR #9356 did). Everything else the fix touched must be absent.
+    own_file = fx["test_id"].split("::")[0].replace(".", "/") + ".py"
+    for f in set(fx["fix_commit_files"]) - set(fx["failing_commit_files"]) - {own_file}:
         assert f not in prompt, f"fix-only file leaked: {f}"
+    # and the prompt must not claim the failing commit touched the test file when it did not
+    if own_file not in fx["failing_commit_files"]:
+        assert f"  {own_file}" not in prompt.split("FILES CHANGED IN THIS COMMIT:")[1]
     assert fx["failing_sha"][:10] in prompt
     for f in fx["failing_commit_files"]:
         assert f in prompt

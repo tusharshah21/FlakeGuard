@@ -47,6 +47,17 @@ class GitHub:
     def artifacts(self, run_id: int) -> list[dict]:
         return self._cached_json(f"run_{run_id}.json", f"/actions/runs/{run_id}/artifacts", "artifacts")
 
+    def commit(self, sha: str) -> dict:
+        """Commit metadata and changed files, cached. Only ever called with a sha derived from the failure data."""
+        f = self.cache / f"commit_{sha}.json"
+        if not f.exists():
+            c = self._get(f"/commits/{sha}").json()
+            f.write_text(json.dumps({
+                "sha": c["sha"], "message": c["commit"]["message"], "date": c["commit"]["author"]["date"],
+                "files": [{k: x.get(k) for k in ("filename", "status", "additions", "deletions")} for x in c.get("files", [])],
+            }), encoding="utf-8")
+        return json.loads(f.read_text(encoding="utf-8"))
+
     def artifact_zip(self, artifact: dict) -> bytes:
         f = self.cache / f"{artifact['id']}.zip"
         if not f.exists():

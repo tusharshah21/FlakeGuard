@@ -1,4 +1,4 @@
-"""uv run python -m flakeguard ingest | health <fixture.json | test_id>"""
+"""uv run python -m flakeguard ingest | health <fixture.json | test_id> | triage <fixture.json | test_id>"""
 import json
 import sys
 from pathlib import Path
@@ -30,5 +30,19 @@ elif cmd == "health":
     for c in h.commits:
         tmp = f"{c.temporal.shift:+.2f}@{c.temporal.at_started_at[5:10]}" if c.temporal else "-"
         print(f"  {c.head_sha[:10]} {c.first_started_at[:10]} {c.runs:4d} {c.n:5d} {c.n_measured:4d} {c.fails:4d} {c.p_hat:6.3f} [{c.ci_low:5.3f}, {c.ci_high:5.3f}] {c.cells_failed:2d}/{c.cells_total:<3d} {c.top_cell_share:7.2f} {c.top_os_share:6.2f} {str(c.concentrated)[0]:>4} {str(c.recovery)[0]:>3} {tmp}")
+elif cmd == "triage":
+    from .orchestrator import configure, triage
+    arg = sys.argv[2]
+    if arg.endswith(".json"):
+        configure(cfg, [arg])
+        arg = json.loads(Path(arg).read_text(encoding="utf-8"))["test_id"]
+    else:
+        configure(cfg)
+    t = triage(arg)
+    sys.stdout.reconfigure(encoding="utf-8")
+    print(t.artifact)
+    if t.invented_numbers:
+        print(f"
+<!-- drafter introduced numbers not in its input: {t.invented_numbers} -->", file=sys.stderr)
 else:
     sys.exit(f"unknown command {cmd!r}")
