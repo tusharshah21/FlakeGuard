@@ -491,8 +491,13 @@ cp .env.example .env                 # GITHUB_TOKEN (public_repo scope) + Bedroc
 uv run pytest                        # 48 tests: stats, gate, leakage, idempotency, read-only explain
 ```
 
-`pytest` needs no credentials and no network: it runs against the committed fixtures. Everything below does need
-them.
+`pytest` needs no credentials and no network - it runs against the committed fixtures - and so does reading one:
+
+```sh
+uv run python -m flakeguard health fixtures/regression_test_get_client.json
+```
+
+Everything below does need credentials.
 
 ```sh
 uv run scripts/check_bedrock.py      # one Bedrock call must succeed
@@ -501,10 +506,9 @@ uv run python -m flakeguard ingest   # ~90 days of dask/distributed CI -> flakeg
 uv run scripts/reconcile.py          # storage must reproduce the probe's headline numbers exactly
 ```
 
-Then look at one test, act on none:
+Then triage, and act on nothing:
 
 ```sh
-uv run python -m flakeguard health  fixtures/regression_test_get_client.json
 uv run python -m flakeguard sweep   --recent --dry-run
 uv run python -m flakeguard explain "distributed.tests.test_gc::test_gc_diagnosis_cpu_time" \
     "Why does this fail only on Windows?"
