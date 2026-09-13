@@ -42,6 +42,10 @@ class Triage(BaseModel):
     dry_run: bool
 
 
+class Overrides(BaseModel):
+    ignore_tests: list[str]
+
+
 class Bedrock(BaseModel):
     model_id: str
     region: str
@@ -53,6 +57,7 @@ class Config(BaseModel):
     stats: Stats
     classify: Classify
     triage: Triage
+    overrides: Overrides
     bedrock: Bedrock
 
 

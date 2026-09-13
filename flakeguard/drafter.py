@@ -11,16 +11,15 @@ from strands import Agent
 from .classifier import Classification, make_agent
 from .config import Config
 from .correlation import Correlation
+from .gate import Decision
 from .stats import TestHealth
 
-# What FlakeGuard proposes per verdict. Whether it actually happens is decided by the Phase 5 action gate, in code.
-PROPOSED = {
-    "regression": "Open an issue naming the failing commit and the likely file. Do not quarantine: the test is doing its job.",
-    "flaky": "Open a quarantine PR that marks the test with pytest.mark.flaky and links this evidence. Un-quarantine automatically after sustained passes.",
-    "chronic": "Open a quarantine PR that marks the test with pytest.mark.flaky and links this evidence, and open an issue for the underlying cause. Un-quarantine automatically after sustained passes.",
-    "platform_specific": "Open an issue scoped to the affected cell(s) or OS. Do not quarantine globally: the test passes everywhere else.",
-    "environment_break": "Open an issue pointing at the date the failures began at a fixed commit; the cause is outside the repository.",
-    "unclear": "No repository change. Route to the review queue and wait for more runs.",
+# What each gate action means for the repository. The gate decides; this text only describes its decision.
+ACTION_TEXT = {
+    "issue": "FlakeGuard will open an issue (or comment on the existing one) with this evidence. It will not quarantine: a test that fails deterministically is doing its job.",
+    "quarantine_pr": "FlakeGuard will open a pull request adding this test to `.flakeguard/quarantine.txt`, which marks it xfail(strict=False): it keeps running and reporting but cannot fail the suite. FlakeGuard never merges. The test is un-quarantined automatically after sustained passes.",
+    "review": "FlakeGuard will NOT change the repository. This case goes to the review queue for a human.",
+    "none": "FlakeGuard will NOT change the repository.",
 }
 
 OVERRIDE = """FlakeGuard acted on statistics, not on knowledge of this code. If this is wrong:
@@ -31,14 +30,15 @@ Closing this issue or PR without either has no effect - the next sweep will recr
 
 class Draft(BaseModel):
     summary: str = Field(description="One paragraph for a maintainer skimming the issue: what happened and what FlakeGuard concluded. No numbers unless quoted from the input.")
-    recommended_action: str = Field(description="One paragraph refining the proposed action for this specific case. No numbers unless quoted from the input.")
+    recommended_action: str = Field(description="One paragraph for this specific case, consistent with the GATE DECISION; never propose a repository change the gate did not decide. No numbers unless quoted from the input.")
 
 
 SYSTEM_PROMPT = """You write the human-facing paragraphs of a CI triage artifact for FlakeGuard.
-You are given a verdict, the classifier's reasoning and conflicting signals, an optional correlation result and a
-proposed action. Write for a maintainer who has thirty seconds. Do not introduce any number, file name or claim that
-is not in the input. If the conflicting signals are not "none", the summary must mention them. Plain prose, no
-headings, no bullet points."""
+You are given a verdict, the classifier's reasoning and conflicting signals, an optional correlation result and the
+action gate's decision. The gate has already decided what happens to the repository; you describe, you do not
+decide. Never suggest a repository change the gate did not decide on. Write for a maintainer who has thirty seconds.
+Do not introduce any number, file name or claim that is not in the input. If the conflicting signals are not "none",
+the summary must mention them. Plain prose, no headings, no bullet points."""
 
 
 def make_drafter_agent(cfg: Config) -> Agent:
@@ -52,9 +52,9 @@ def _numbers(text: str) -> set[str]:
 
 
 def draft(test_id: str, health: TestHealth, cls: Classification, evidence: str, correlation: Correlation | None,
-          commit_ctx: dict | None, cfg: Config, agent: Agent | None = None) -> tuple[str, list[str]]:
-    """Returns (markdown artifact, invented_numbers). invented_numbers is empty when the drafter's prose introduced none."""
-    proposed = PROPOSED[cls.verdict]
+          commit_ctx: dict | None, decision: Decision, cfg: Config, agent: Agent | None = None) -> tuple[str, list[str]]:
+    """Returns (markdown artifact, invented_numbers). invented_numbers is empty when the drafter's prose introduced none.
+    The Recommended action section states the GATE's decision; the artifact never proposes an action the gate blocked."""
     drafter_input = "\n".join([
         f"TEST: {test_id}",
         f"VERDICT: {cls.verdict} (confidence {cls.confidence:.2f})",
@@ -62,7 +62,8 @@ def draft(test_id: str, health: TestHealth, cls: Classification, evidence: str, 
         f"CONFLICTING SIGNALS: {cls.conflicting_signals}",
         f"REASONING: {cls.reasoning}",
         f"CORRELATION: {'not run (verdict is not regression)' if correlation is None else f'plausible={correlation.plausible}; likely_file={correlation.likely_file}; {correlation.rationale}'}",
-        f"PROPOSED ACTION: {proposed}",
+        f"GATE DECISION: {decision.action} - {decision.reason}",
+        f"WHAT THAT MEANS: {ACTION_TEXT[decision.action]}",
     ])
     d = (agent or make_drafter_agent(cfg)).structured_output(Draft, prompt=drafter_input)
     allowed = _numbers(evidence) | _numbers(drafter_input)
@@ -105,7 +106,9 @@ def draft(test_id: str, health: TestHealth, cls: Classification, evidence: str, 
     parts += [
         "",
         "## Recommended action",
-        proposed,
+        f"**{decision.action.replace('_', ' ')}** - {decision.reason}",
+        "",
+        ACTION_TEXT[decision.action],
         "",
         d.recommended_action,
         "",

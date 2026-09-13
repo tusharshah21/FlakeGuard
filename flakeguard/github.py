@@ -12,10 +12,9 @@ class GitHub:
         self.cache = Path(cache_dir)
         self.cache.mkdir(parents=True, exist_ok=True)
         self.s = requests.Session()
-        self.s.headers.update({
-            "Authorization": f"Bearer {token or os.environ['GITHUB_TOKEN']}",
-            "Accept": "application/vnd.github+json",
-        })
+        self.s.headers["Accept"] = "application/vnd.github+json"
+        if token := token or os.environ.get("GITHUB_TOKEN"):
+            self.s.headers["Authorization"] = f"Bearer {token}"
         self.requests_used = 0
 
     def _get(self, url, **params):

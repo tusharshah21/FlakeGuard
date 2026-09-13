@@ -25,6 +25,16 @@ CREATE TABLE IF NOT EXISTS run_cells (
     status TEXT,   -- parsed | roster | infra | unresolved | skipped
     PRIMARY KEY (run_id, cell)
 );
+-- what the sweep decided and did, one row per (test, sweep). The action gate reads this for idempotency and
+-- quarantine state; nothing else may write it.
+CREATE TABLE IF NOT EXISTS triage_decisions (
+    test_id TEXT, decided_on TEXT, decided_at TEXT, verdict TEXT, confidence REAL,
+    action TEXT,      -- issue | issue_comment | quarantine_pr | unquarantine_pr | review | none
+    reason TEXT,      -- the gate's reason, in words
+    url TEXT,         -- the GitHub artifact, when one was created or updated
+    dry_run INTEGER,
+    PRIMARY KEY (test_id, decided_on, action)
+);
 -- sampled test rosters per cell (tests that passed in a sampled succeeded run)
 CREATE TABLE IF NOT EXISTS rosters (
     cell TEXT, started_at TEXT, run_id INTEGER, test_id TEXT,
@@ -85,6 +95,33 @@ class Storage:
                 rows.append({**{c: rc[c] for c in ("run_id", "head_sha", "branch", "event", "started_at", "cell")},
                              "test_id": test_id, "outcome": "pass", "source": "roster"})
         return rows
+
+    # ---- triage state
+    def record_decision(self, test_id: str, decided_at: str, verdict: str | None, confidence: float | None,
+                        action: str, reason: str, url: str | None, dry_run: bool) -> None:
+        self.db.execute("INSERT OR REPLACE INTO triage_decisions VALUES (?,?,?,?,?,?,?,?,?)",
+                        (test_id, decided_at[:10], decided_at, verdict, confidence, action, reason, url, int(dry_run)))
+        self.db.commit()
+
+    def last_real_decision_on(self, test_id: str) -> str | None:
+        """Most recent day on which a non-dry-run decision was recorded for this test."""
+        r = self.db.execute("SELECT MAX(decided_on) FROM triage_decisions WHERE test_id = ? AND dry_run = 0", (test_id,)).fetchone()
+        return r[0]
+
+    def quarantined_at(self, test_id: str) -> str | None:
+        """When the test was quarantined, if its most recent (un)quarantine action was a quarantine."""
+        r = self.db.execute("SELECT action, decided_at FROM triage_decisions WHERE test_id = ? AND dry_run = 0 "
+                            "AND action IN ('quarantine_pr', 'unquarantine_pr') ORDER BY decided_at DESC LIMIT 1", (test_id,)).fetchone()
+        return r[1] if r and r[0] == "quarantine_pr" else None
+
+    def quarantined_tests(self) -> list[tuple[str, str]]:
+        return [(t, q) for (t,) in self.db.execute("SELECT DISTINCT test_id FROM triage_decisions") if (q := self.quarantined_at(t))]
+
+    def decisions(self, decided_on: str | None = None) -> list[dict]:
+        q, args = "SELECT * FROM triage_decisions", ()
+        if decided_on:
+            q, args = q + " WHERE decided_on = ?", (decided_on,)
+        return [dict(r) for r in self.db.execute(q + " ORDER BY decided_at", args)]
 
     def failing_tests(self) -> list[str]:
         return [r[0] for r in self.db.execute("SELECT DISTINCT test_id FROM observations WHERE outcome = 'fail'")]

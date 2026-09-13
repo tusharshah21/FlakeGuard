@@ -5,7 +5,7 @@ from flakeguard.ingest import parse_junit, resolve
 
 
 def junit_zip(cases):
-    child = {"fail": "<failure/>", "skip": "<skipped/>", "pass": ""}
+    child = {"fail": "<failure/>", "skip": "<skipped/>", "pass": "", "xfail": '<skipped type="pytest.xfail" message="quarantined"/>'}
     body = "".join(f'<testcase classname="m" name="{n}">{child[o]}</testcase>' for n, o in cases)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
@@ -29,3 +29,11 @@ def test_duplicates_collapse_deterministically_and_are_counted():
     assert why is None
     assert dict(rows) == {"m::a": "fail", "m::b": "fail", "m::c": "fail", "m::d": "pass", "m::e": "fail", "m::f": "fail"}  # g: skip-only, dropped
     assert dict(collapses) == {("fail", "fail"): 1, ("pass", "fail"): 1, ("fail", "pass"): 1, ("skip", "fail"): 1, ("fail", "skip"): 1}
+
+
+def test_xfail_counts_as_failure_only_for_quarantined_tests():
+    z = junit_zip([("q", "xfail"), ("legit", "xfail"), ("p", "pass")])
+    rows, _, _ = parse_junit(z, quarantined=frozenset({"m::q"}))
+    assert dict(rows) == {"m::q": "fail", "m::p": "pass"}       # legit xfail stays a skip -> no observation
+    rows, _, _ = parse_junit(z)
+    assert dict(rows) == {"m::p": "pass"}

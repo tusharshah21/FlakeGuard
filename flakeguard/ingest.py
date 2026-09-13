@@ -27,9 +27,12 @@ def resolve(outcomes: list[str]) -> str:
     return min(outcomes, key=PRECEDENCE.index)
 
 
-def parse_junit(blob: bytes) -> tuple[list[tuple[str, str]] | None, str | None, Counter]:
+def parse_junit(blob: bytes, quarantined: frozenset[str] = frozenset()) -> tuple[list[tuple[str, str]] | None, str | None, Counter]:
     """-> ([(test_id, 'pass'|'fail')], None, collapses) or (None, reason, collapses).
-    Skipped testcases are not observations. `collapses` counts duplicate ids by (first_outcome, second_outcome)."""
+    Skipped testcases are not observations, with one exception: a quarantined test is marked xfail(strict=False) by the
+    FlakeGuard conftest hook, and pytest reports its failure as <skipped type="pytest.xfail">. For tests in
+    `quarantined` that counts as a failure, so the un-quarantine loop sees real outcomes. Legitimate xfails elsewhere are
+    untouched. `collapses` counts duplicate ids by (first_outcome, second_outcome)."""
     collapses = Counter()
     try:
         z = zipfile.ZipFile(io.BytesIO(blob))
@@ -45,11 +48,13 @@ def parse_junit(blob: bytes) -> tuple[list[tuple[str, str]] | None, str | None, 
         return None, "no testsuite element", collapses
     seen = defaultdict(list)
     for tc in root.iter("testcase"):
-        if tc.find("skipped") is not None:
-            o = "skip"
+        tid = f"{tc.get('classname')}::{tc.get('name')}"
+        skipped = tc.find("skipped")
+        if skipped is not None:
+            o = "fail" if tid in quarantined and (skipped.get("type") or "").endswith("xfail") else "skip"
         else:
             o = "fail" if tc.find("failure") is not None or tc.find("error") is not None else "pass"
-        seen[f"{tc.get('classname')}::{tc.get('name')}"].append(o)
+        seen[tid].append(o)
     for outcomes in seen.values():
         for a, b in zip(outcomes, outcomes[1:]):
             collapses[(a, b)] += 1
@@ -71,6 +76,7 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
                 "event": r["event"], "started_at": r["run_started_at"]}
 
     counts, run_cells, obs, collapses = defaultdict(int), [], [], Counter()
+    quarantined = frozenset(t for t, _ in store.quarantined_tests())
     succeeded = defaultdict(list)  # cell -> [(started_at, run, artifact)] for roster sampling
     for r in runs:
         arts = {a["name"]: a for a in gh.artifacts(r["id"]) if not a["expired"]}
@@ -88,7 +94,7 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
             elif c not in arts:
                 rc["status"] = "unresolved"
             else:
-                rows, why, col = parse_junit(gh.artifact_zip(arts[c]))
+                rows, why, col = parse_junit(gh.artifact_zip(arts[c]), quarantined)
                 collapses += col
                 if why:
                     rc["status"] = "unresolved"

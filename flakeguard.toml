@@ -29,10 +29,13 @@ flaky_ci_high = 0.1       # Wilson upper bound at/below this -> flaky
 
 [triage]
 window_runs = 50
-min_runs = 15
-action_threshold = 0.75
-unquarantine_after_passes = 20
-dry_run = true
+min_runs = 15                   # fewer runs in the window than this -> review, never act
+action_threshold = 0.75         # classifier confidence below this -> review, never act
+unquarantine_after_passes = 20  # a quarantined test with this many consecutive clean runs since quarantine is un-quarantined
+dry_run = true                  # flip only against scratch_repo, never against the analysis target
+
+[overrides]
+ignore_tests = []               # test ids FlakeGuard must never act on; the label flakeguard-override does the same per artifact
 
 [bedrock]
 model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"  # Sonnet 4.6 pending the Anthropic use-case form on this account

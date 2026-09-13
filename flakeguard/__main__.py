@@ -1,4 +1,6 @@
-"""uv run python -m flakeguard ingest | health <fixture.json | test_id> | triage <fixture.json | test_id>"""
+"""uv run python -m flakeguard ingest | health <fixture.json | test_id> | triage <fixture.json | test_id>
+                          | sweep [--fixtures a.json b.json] [--tests id ...] [--all-failing] [--as-of ISO8601]
+                          | decisions [YYYY-MM-DD]"""
 import json
 import sys
 from pathlib import Path
@@ -43,5 +45,28 @@ elif cmd == "triage":
     print(t.artifact)
     if t.invented_numbers:
         print(f"<!-- drafter introduced numbers not in its input: {t.invented_numbers} -->", file=sys.stderr)
+elif cmd == "sweep":
+    from .orchestrator import configure, sweep
+    sys.stdout.reconfigure(encoding="utf-8")
+    args = sys.argv[2:]
+    def opt(name):
+        if name not in args:
+            return []
+        i = args.index(name) + 1
+        out = []
+        while i < len(args) and not args[i].startswith("--"):
+            out.append(args[i]); i += 1
+        return out
+    fixtures = opt("--fixtures")
+    as_of = (opt("--as-of") or [None])[0]
+    r = configure(cfg, fixtures, as_of=as_of)
+    tests = opt("--tests") or list(r.fixtures) if fixtures else opt("--tests")
+    if "--all-failing" in args:
+        tests = r.store.failing_tests()
+    sweep(tests)
+elif cmd == "decisions":
+    from .storage import Storage
+    for d in Storage(cfg.ingest.db_path).decisions(sys.argv[2] if len(sys.argv) > 2 else None):
+        print(f"{d['decided_at']} {'DRY ' if d['dry_run'] else 'LIVE'} {d['action']:15s} {d['test_id'].split('::')[-1]:45s} {d['verdict'] or '-':18s} {d['url'] or ''}  {d['reason']}")
 else:
     sys.exit(f"unknown command {cmd!r}")

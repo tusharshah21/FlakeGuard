@@ -297,6 +297,42 @@ exploration matters.
 mechanisms are named - `[overrides] ignore_tests` in config, or the `flakeguard-override` label - and Phase 5
 implements both.
 
+## Acting, and knowing when not to (Phase 5)
+
+**The analysis target and the action target are different repositories, on purpose.** FlakeGuard analyses
+`dask/distributed`, a public repository we do not own, and never opens anything there. Every issue and pull request
+goes to `target.scratch_repo`, a repository the operator owns. `dry_run = true` is the default; turning it off with
+`scratch_repo` unset or equal to the analysis target is refused at startup.
+
+**The gate is plain Python** (`flakeguard/gate.py`) - not a tool, not model-controlled. In order: an overridden test
+is never acted on; one decision per test per day (hard idempotency); fewer than `min_runs` runs -> review; classifier
+confidence below `action_threshold` -> review; verdict `unclear` -> review; already quarantined and still flaky ->
+nothing. The gate runs its cheap checks *before* the classifier, so a case it will block anyway costs no model call.
+The model decides what a test is; this function decides whether a repository gets touched. Tests pin it: the
+ambiguous fixture routes to review even if handed a 0.95 verdict, because it has 12 runs.
+
+**The artifact states the gate's decision, not the verdict's wish.** The drafter is told what the gate decided and
+why; "Recommended action" is the gate's reason in words, and the drafter agent is instructed never to propose a
+repository change the gate did not make.
+
+**Tools** (`flakeguard/actions.py`), all idempotent, all pointed at the scratch repo:
+- `open_issue` - an existing open issue for the test gets a comment, never a duplicate.
+- `open_quarantine_pr` - a branch adding one line to `.flakeguard/quarantine.txt` (and, once, a twelve-line
+  `conftest.py` hook that marks listed tests `xfail(strict=False)`: they keep running and reporting but cannot fail
+  the suite). FlakeGuard never merges. Because the test keeps running, its outcomes keep flowing: the ingest records
+  a quarantined test's `pytest.xfail` as a failure - for quarantined tests only - so the loop below has real data.
+- `review` - one shared "Review queue" issue, one comment per test per day, no code touched.
+- decisions are written back to `triage_decisions` in storage; the gate reads them.
+
+**The un-quarantine loop.** Every sweep checks each quarantined test: if it has passed in every cell for
+`unquarantine_after_passes` consecutive runs since quarantine, FlakeGuard opens a PR removing the line and records
+the reversal. A failure resets the streak. It never reverses a quarantine made the same day. This is what keeps the
+agent from being a one-way ratchet.
+
+Two sweeps on the same day create nothing new and cost no model calls (`tests/test_sweep.py`, against an in-memory
+GitHub double with every model call stubbed). The sweep accepts `--as-of` to replay history with a declared clock;
+the un-quarantine demonstration below uses it, and says so.
+
 ## The denominator under every interval is validated
 
 Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster
