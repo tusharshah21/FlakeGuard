@@ -1,10 +1,22 @@
 # FlakeGuard
 
-Autonomous flaky-test triage agent for GitHub Actions + pytest, built on the Strands Agents SDK.
+**Autonomous flaky-test triage for GitHub Actions and pytest, built on the Strands Agents SDK.**
 
-**The determinism boundary:** the LLM reasons; it never carries a fact or a number. All statistics
-are computed in Python and pinned into prompts as ground truth. Scheduling, idempotency, deduplication
-and rate limiting live in code, not in the model.
+Once a test suite is unreliable, engineers stop trusting every failure - including the real ones. FlakeGuard runs
+in the background over a repository's CI history, computes per-test failure probabilities from real run data, and
+decides for each failing test whether it is flaky, a genuine regression, confined to one platform, or simply not
+yet decidable. When the evidence is strong enough it acts: an issue naming the likely commit, a pull request
+quarantining a flake, and - when the test recovers - a pull request reversing that quarantine. When the evidence is
+weak it does nothing and says why. It is built for teams whose CI has become noise, and for maintainers who need a
+reason, not a verdict.
+
+**The determinism boundary:** the model reasons; it never carries a fact or a number. Every statistic is computed
+in Python and pinned into the prompt as ground truth. Scheduling, idempotency, deduplication, rate limiting and the
+decision to write are all code. This document is mostly the evidence for that claim.
+
+It is demonstrated against [`dask/distributed`](https://github.com/dask/distributed) - a real, active, public
+repository with 89 days of genuinely messy CI history. FlakeGuard never writes to it; artifacts go to this
+repository's `scratch` branch instead.
 
 ## Why now
 
@@ -19,108 +31,7 @@ were edited. Runs [30925383561](https://github.com/dask/distributed/actions/runs
 The volume of machine-generated changes is rising faster than review capacity. Triage that is automatic,
 evidence-based and reversible is how a CI signal stays trustworthy under that load.
 
-## Reading this repo's Issues and Pull Requests
-
-The Issues and Pull Requests tabs of this repository contain **agent-generated replay artifacts**: FlakeGuard ran
-against the historical CI data of `dask/distributed` and wrote its issues, quarantine PRs, un-quarantine PRs and
-review-queue entries here, into its own repository, because we do not own `dask/distributed` and never act on it.
-They are labelled `flakeguard-replay`, titled `[REPLAY ...]`, and each opens with a one-line disclaimer. Every PR
-targets the `scratch` branch - never `main` - and that is asserted in code, not configured: a PR against `main` would
-put the quarantine hook one merge away from this project's own test suite, so the action layer raises before any API
-call, and startup refuses live mode unless `scratch_branch` exists and is not `main`/`master`. The `scratch` branch
-carries three trivial tests under `tests/scratch_suite/` so the quarantine PRs have real files to sit beside; the
-quarantine list and the hook exist only on `scratch`-derived branches (a test asserts they are absent from `main`).
-No action of any kind was ever taken against `dask/distributed`.
-
-## Setup
-
-```sh
-uv sync
-cp .env.example .env              # GITHUB_TOKEN (classic, public_repo scope) + Bedrock creds
-uv run scripts/check_bedrock.py   # one Bedrock call must succeed
-uv run python -m flakeguard ingest   # ~90 days of dask/distributed CI into flakeguard.db (~650 requests first time, cached after)
-uv run pytest                     # fixture <-> storage contract, JUnit collapse rule, stats over the three fixtures
-uv run python -m flakeguard health fixtures/regression_test_get_client.json   # or a test_id, read from storage
-uv run scripts/reconcile.py       # storage must reproduce the probe's headline numbers exactly
-```
-
-`dry_run = true` in `flakeguard.toml` until you point it at a scratch repo you own.
-
-## Data contract
-
-Every observation, whether read from storage or loaded from `fixtures/*.json`, has exactly this shape:
-
-```
-{run_id, head_sha, branch, event, started_at, cell, test_id, outcome, source}
-```
-
-`outcome` is `pass` or `fail` (skipped tests are not observations). `source` is `artifact` when the outcome was
-read from a JUnit file, `roster` when it is a pass inferred from a succeeded job plus the cell's nearest-in-time
-roster; inferred rows are derived at read time and never stored. The dedup key is `(run_id, test_id, cell)`.
-
-A test id can appear twice in one JUnit file: pytest emits a second `<testcase>` when teardown errors after the
-call. Duplicates collapse with an explicit precedence, `fail > pass`, so the stored outcome does not depend on
-parse order; every collapse is counted by `(first, second)` pair and reported by the ingest. **Known
-simplification:** a pass-then-teardown-error is a distinct phenomenon - usually a resource leak, not flakiness -
-and today it is collapsed to `fail`. In the current data all 3 collapses are `(fail, fail)`.
-
-Per run-cell, ingestion records one of: `parsed` (artifact with failures), `roster` (job succeeded), `infra`
-(job failed, artifact has zero failing tests), `unresolved` (job failed, no usable artifact), `skipped`
-(cancelled). Nothing is dropped silently; `scripts/reconcile.py` prints the counts.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
-## Design notes (from the Phase 0.5 probe)
-
-The target repo, `dask/distributed`, never re-runs GitHub Actions workflows (`run_attempt` is always 1).
-It retries failing tests in-process with `pytest-rerunfailures`, so the retry signal lives inside the
-JUnit XML artifacts. That reshapes the product:
-
-- **What FlakeGuard surfaces is the flakiness your reruns are hiding.** A flaky test usually ends with a
-  green run; nobody sees it. FlakeGuard reads the reruns the CI swallowed.
-- **Three-way classification** (Phase 3 prompt):
-  - *masked flake* — fails, passes on rerun, same commit, run ends green
-  - *regression* — fails all reruns, failures cluster after one commit
-  - *chronic* — recovers repeatedly across many commits over a long period
-- **Retry recovery** (Phase 2) = rerun-recoveries within a single run on a single commit. The commit is
-  identical by construction, not by comparison.
-- **Dedup key** (Phase 1) = `(run_id, test_id, rerun_index)`, where `rerun_index` is the testcase's
-  position in its rerun sequence in the XML.
-- **Artifact volume cap.** One canonical matrix cell is ingested across the full window; all cells are
-  pulled for a handful of runs only, for a secondary cross-platform signal. The cell is config, not code.
-
-### Per-commit failure probability (Phase 2)
-
-dask's `Tests` workflow re-runs the full suite on `main` twice daily by cron, so a single commit accumulates
-many independent runs of identical code. That makes per-test flakiness a measured probability, not a heuristic.
-`stats.py` computes, per `(test_id, head_sha, cell)`: `n` (independent runs), `p_hat = failures / n`, and the
-95% Wilson score interval on `p_hat`. Classification then rests on the interval:
-
-- *regression* — lower bound close to 1.0 (fails essentially always)
-- *masked flake* — interval strictly between 0 and 1
-- *chronic* — flake interval excludes 0 across >= 3 distinct commits
-- *environment break* — at a fixed commit, failures cluster in time rather than scatter (the code did not
-  change; the runner image, transitive deps or an upstream service did)
-- *platform-specific* — failures concentrated in one cell or OS across the matrix
-- *unclear* — `n` too small for the interval to separate the cases
-
-`flakeguard/stats.py` (no `strands` import, enforced by a test) computes per test and per commit: `n` split into
-`n_measured` (read from a JUnit file) and `n_inferred` (roster), `p_hat`, the Wilson interval, `cells_failed /
-cells_total`, per-cell counts, top-cell and top-OS failure share, recovery commits (both a fail and a pass at one
-commit), spread recoveries (not concentrated in one cell or OS), the chronic flag, the largest shift in failure
-rate between consecutive commits (an onset when it is a rise), and the largest within-commit shift over time (the
-environment-break signal). Every threshold comes from `[stats]` in `flakeguard.toml`; the module has none of its
-own. `n` and the bounds are pinned into the classifier prompt as evidence. The model interprets; it never computes.
-
-**Causal direction is guarded.** The correlation agent (Phase 4) receives only the *failing* commit's metadata and
-file list - never the fix commit's. A test asserts that `fix_sha` and `fix_commit_files` are absent from
-everything the agent is shown. If they ever leak, the agent is reasoning backward from the answer.
-Same-commit comparison is restricted to `event = schedule`, `branch = main`, one canonical matrix cell; trigger,
-sha, branch and cell are first-class columns so the filter is explicit in every query.
-
-### The matrix is a failure multiplier
+## The finding: a test matrix is a failure multiplier
 
 Every one of dask/distributed's 34 test-matrix cells is ~98% green. Yet 162 of 191 scheduled runs go red. A
 34-cell matrix amplifies rare per-cell flakiness into near-constant failure: each cell flips its own coin, and
@@ -134,20 +45,6 @@ fails on every Windows run and nowhere else would read as a tidy 9% flake if poo
 stratifies first: per-cell counts are kept, a simple dispersion check (share of failures in the top cell / top
 OS, number of cells with any failure) decides whether failures are spread or concentrated, and only spread
 failures are pooled. Concentrated ones are a fifth category, *platform-specific*.
-
-## Architecture
-
-Two paths (ingest and triage), two surfaces (the deterministic pipeline and `explain`), one boundary between
-statistics and judgement. **Blue = deterministic Python. Orange = LLM call. Red = the gate, the only place a
-judgement becomes a write.**
-
-![FlakeGuard architecture](docs/architecture.svg)
-
-_Source: [`docs/architecture.md`](docs/architecture.md)._
-
-Every orange box sits inside a blue path: a model never touches the API, the database, or the decision to write.
-The first gate disposes of cases before any model is called; the second decides whether a verdict becomes an
-artifact. `explain` shares the tools and has no path to `ACT` at all.
 
 ### Zero always-failing tests is itself a finding
 
@@ -172,7 +69,135 @@ PR runs was a regression, and every masked flake on `main` failed in 1-3 cells. 
 commit is therefore a strong prior on category before any probability is computed, and `stats.py` reports it as a
 first-class statistic.
 
-## Why a model - measured, not asserted
+## Architecture
+
+Two paths (ingest and triage), two surfaces (the deterministic pipeline and `explain`), one boundary between
+statistics and judgement. **Blue = deterministic Python. Orange = LLM call. Red = the gate, the only place a
+judgement becomes a write.**
+
+![FlakeGuard architecture](docs/architecture.svg)
+
+_Source: [`docs/architecture.md`](docs/architecture.md)._
+
+Every orange box sits inside a blue path: a model never touches the API, the database, or the decision to write.
+The first gate disposes of cases before any model is called; the second decides whether a verdict becomes an
+artifact. `explain` shares the tools and has no path to `ACT` at all.
+
+### What is computed, and where
+
+`flakeguard/stats.py` imports nothing from `strands` - a test parses its AST to enforce that - and computes, per
+test and per commit: `n` split into `n_measured` (read from a JUnit file) and `n_inferred` (a pass deduced from a
+succeeded job plus that cell's sampled roster), `p_hat`, the 95% Wilson score interval, `cells_failed /
+cells_present`, per-cell counts, top-cell and top-OS failure share, recovery commits, spread recoveries, the
+chronic flag, the largest shift in failure rate between consecutive commits (an onset when it is a rise), and the
+largest within-commit shift over time (the environment-break signal). Every threshold comes from `[stats]` in
+`flakeguard.toml`; the module has none of its own, so the code and the prompt cannot disagree.
+
+The classifier chooses between six verdicts, each defined by those statistics: **regression** (Wilson lower bound
+at the threshold, failures across the cells the test runs in), **flaky** (upper bound below the threshold, spread,
+recovering), **chronic** (a flake whose spread recoveries reach the threshold), **platform_specific** (failures
+concentrated in one cell or OS, whatever the pooled rate says), **environment_break** (at a fixed commit, failures
+begin at a date), and **unclear** (the interval spans the thresholds, or `n` is too small).
+
+Dask's `Tests` workflow re-runs the full suite on `main` twice daily by cron, so one commit accumulates many
+independent runs of identical code. That is what makes per-test flakiness a measured probability here rather than a
+heuristic.
+
+**Causal direction is guarded.** The correlation agent receives only the *failing* commit's metadata and file list,
+never the fix commit's. `tests/test_leakage.py` was committed before the agent existed and asserts, for both
+regression fixtures, that the prompt contains neither the fix commit's sha nor any file only the fix touched, and
+that `build_prompt` has no parameter through which fix information could arrive.
+
+### The data contract
+Every observation, whether read from storage or loaded from `fixtures/*.json`, has exactly this shape:
+
+```
+{run_id, head_sha, branch, event, started_at, cell, test_id, outcome, source}
+```
+
+`outcome` is `pass` or `fail` (skipped tests are not observations). `source` is `artifact` when the outcome was
+read from a JUnit file, `roster` when it is a pass inferred from a succeeded job plus the cell's nearest-in-time
+roster; inferred rows are derived at read time and never stored. The dedup key is `(run_id, test_id, cell)`.
+
+A test id can appear twice in one JUnit file: pytest emits a second `<testcase>` when teardown errors after the
+call. Duplicates collapse with an explicit precedence, `fail > pass`, so the stored outcome does not depend on
+parse order; every collapse is counted by `(first, second)` pair and reported by the ingest. **Known
+simplification:** a pass-then-teardown-error is a distinct phenomenon - usually a resource leak, not flakiness -
+and today it is collapsed to `fail`. In the current data all 3 collapses are `(fail, fail)`.
+
+Per run-cell, ingestion records one of: `parsed` (artifact with failures), `roster` (job succeeded), `infra`
+(job failed, artifact has zero failing tests), `unresolved` (job failed, no usable artifact), `skipped`
+(cancelled). Nothing is dropped silently; `scripts/reconcile.py` prints the counts.
+
+## Two surfaces: `sweep` and `explain`
+
+FlakeGuard has one pipeline that decides and one that explores, and they are built on opposite principles.
+
+`flakeguard sweep` runs a fixed sequence from Python - health, gate, classify, correlate, draft, act - because
+that path can modify a repository, and because of the fragility experiment above: one sentence added to one verdict
+definition moved an unrelated verdict across the action threshold. Control flow that decides whether an artifact is
+written does not belong in a prompt.
+
+`flakeguard explain <test_id> "<question>"` is the opposite. A Strands agent gets the same four deterministic tools
+- `get_test_health`, `get_commit_context`, `classify_test`, `correlate_regression` - and sequences them itself,
+calling them in whatever order and as many times as the question needs. Exploration has no correct order, so
+imposing one only gets in the way. It is read-only **by construction**: the action layer is not in its toolset and
+`flakeguard/explain.py` does not import it, which `tests/test_explain.py` asserts so a later refactor cannot quietly
+add a writing tool. A per-explain ceiling (`max_explain_model_calls`) stops an exploratory loop from running away,
+and `--json` gives machine-readable output.
+
+Deterministic where correctness matters, agentic where exploration matters.
+
+The same invented-number check that governs the classifier applies here: every numeric token in the answer must
+appear in tool output. Over five explains (`probe-results/eval-explain.txt`), **2 of the numbers written were not
+traceable, and both were percentage conversions** - "passes roughly 98% of the time" from 8 failures in 407
+observations, and "failed consistently at 100%" from a p_hat of 1.000. Neither is false, and both are the kind of
+rounding a maintainer would do out loud; the check flags them because the rule is that numbers are quoted, not
+computed. It is also a reminder that the prose surface is looser than the artifact surface, which is exactly why
+only one of them can act.
+
+### Why the deciding surface is not agentic
+
+FlakeGuard uses Strands agents for every step that needs judgement - classification, correlation, drafting - each
+with a narrow contract and a Pydantic structured output. It does not use an agent to decide which of those steps
+runs. The reason is measured, not stylistic: the fragility experiment above showed that one sentence added to one
+verdict's definition moved an unrelated verdict across the action threshold with self-contradictory reasoning.
+Delegating control flow to a prompt would put that same fragility in charge of whether a correlation runs, what it
+is handed, and whether an artifact is written. So the reasoning is agentic and the sequencing is code: tools take
+only a test id, the pipeline order is a Python function, and the action gate is a Python function.
+
+### The gate, and how to tell it it was wrong
+
+The gate (`flakeguard/gate.py`) is plain Python - not a tool, not model-controlled. In order: an overridden test is
+never acted on; one decision per test per day; fewer than `min_runs` runs goes to review; confidence below
+`action_threshold` goes to review; `unclear` goes to review; a test already quarantined and still flaky is left
+alone. The cheap checks run *before* the classifier, so a case the gate will block costs no model call.
+
+Every artifact ends with how to overrule it: add the test to `[overrides] ignore_tests`, or apply the
+`flakeguard-override` label. Closing a FlakeGuard issue or PR is also respected - it is recorded as a human
+decision and never recreated. An agent that touches a repository must say how to tell it it was wrong.
+
+### Why quarantine is xfail, not skip
+
+The obvious quarantine marker is `pytest.mark.skip`. It would make the agent a one-way ratchet. A skipped test
+produces no observations - no pass, no fail, nothing in the JUnit file - so FlakeGuard could never gather the
+evidence that the test has recovered, and nothing would ever be un-quarantined except by a human remembering to.
+`pytest.mark.xfail(strict=False)` keeps the test running and reporting while preventing it from failing the suite:
+a pass is recorded as a pass, a failure is recorded by pytest as `<skipped type="pytest.xfail">`, which the ingest
+reads as a failure for quarantined tests only. The data keeps flowing, the streak can be measured, and reversal
+becomes possible at all. The quarantine list lives in one file and the hook is twelve lines, so a maintainer can
+read the whole mechanism in under a minute.
+
+**The un-quarantine loop.** Every sweep checks each quarantined test: if it has passed in every cell for
+`unquarantine_after_passes` consecutive runs since quarantine, FlakeGuard opens a PR removing the line and records
+the reversal. A failure resets the streak. It never reverses a quarantine made the same day. This is what keeps the
+agent from being a one-way ratchet.
+
+Two sweeps on the same day create nothing new and cost no model calls (`tests/test_sweep.py`, against an in-memory
+GitHub double with every model call stubbed). The sweep accepts `--as-of` to replay history with a declared clock;
+the un-quarantine demonstration below uses it, and says so.
+
+## Results
 
 A threshold rule on the Wilson interval (`flakeguard/baseline.py`) classifies the three primary fixtures correctly.
 So does the model. The question is what happens where a single signal is misleading. We built a conflict set of
@@ -231,7 +256,7 @@ stand in time, our label was drawn from one commit, and the evidence supports mo
 That is a more useful result than either a clean win or a clean miss: it is why the action gate blocks this case at
 0.40 whoever turns out to be right, and why `explain` earns its place as a second look rather than a second opinion.
 
-## LLM classification is not locally editable - a controlled experiment
+### LLM classification is not locally editable - a controlled experiment
 
 This is the strongest empirical result in the project, so it gets its own section. We tried to improve the score,
 succeeded on the target, broke two unrelated cases, and reverted to the worse number.
@@ -292,141 +317,20 @@ We reverted and kept 2/4 with zero fabrication over 3/4 with nine fabricated num
 for the action gate living in Python and not in the prompt, and it is why the classifier prompt is now frozen: any
 change requires this full protocol - every fixture, ten runs, invented-number counts - before it can land.
 
-### Two findings from looking for hard cases
+### The denominator under every interval is validated
 
-**dask's CI environment was stable for the whole window.** An environment break - a fixed commit whose failures
-start on a date because a runner image, a transitive dependency or an upstream service moved - leaves a signature:
-zero failures before a boundary, a material rate after, across cells. We searched both long-lived commits
-(`40fcd99a8c`, 78 runs over 39 days; `dc182bda54`, 34 runs over 17 days). Failures run flat at ~3.5 per day, no
-day spikes, and no test's failures begin on a date. The statistic (`within_commit_over_time`) and the category
-(`environment_break`) are implemented; the data contains no instance; we did not fabricate one.
+Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster
+says the test runs there. Every Wilson interval in the system rests on that inference, so we checked it against
+the data that does not depend on it. For every test that ever failed, and every cell in its roster, we asked: in
+the artifacts we actually parsed for that cell, is the test always present?
 
-## From verdict to artifact (Phase 4)
-
-`flakeguard/orchestrator.py` runs a fixed pipeline: health -> classify -> (regression only) commit context +
-correlation -> draft. The steps are Strands tools - classifier, correlation and drafter are agents behind tool
-functions, health and commit context are deterministic - but the sequence is Python, not a prompt, and **every tool
-takes only a test id**. No tool accepts a sha, a file list or a verdict from a caller, so nothing one model says can
-steer what another model is shown.
-
-The correlation agent reasons forward. It sees the message and changed files of the commit under investigation -
-the most recent commit with a failure, derived from the data by `baseline.episode()` - and nothing after it.
-`tests/test_leakage.py` was committed before the agent existed and asserts, for both regression fixtures, that the
-prompt contains neither the fix commit's sha nor any file only the fix touched, and that `build_prompt` has no
-parameter through which fix information could arrive. On PR #9340 the artifact names `distributed/worker.py` from
-the failing commit's two files (`probe-results/artifacts/regression_test_get_client.md`).
-
-The drafter's shape is fixed: Verdict / Evidence / Reasoning / Conflicting signals / Correlation / Recommended
-action / How to override. The Evidence section is the exact block the classifier saw, pasted by code. Reasoning and
-Conflicting signals are the classifier's text verbatim. A small drafter agent writes only the opening summary and
-one paragraph refining the recommended action, and is checked for numbers that appear in neither the evidence nor
-its input. On the PR-branch miss the artifact opens with "classified ... as a regression with low confidence", names
-the Windows concentration in the first three sentences, and the correlation step reports no plausible cause
-(`probe-results/artifacts/conflict_platform_pr_test_bad_executable.md`) - the conflict is on the surface, not
-behind the verdict.
-
-### Why orchestration is deterministic
-
-FlakeGuard uses Strands agents for every step that needs judgement - classification, correlation, drafting - each
-with a narrow contract and a Pydantic structured output. It does not use an agent to decide which of those steps
-runs. The reason is measured, not stylistic: the fragility experiment above showed that one sentence added to one
-verdict's definition moved an unrelated verdict across the action threshold with self-contradictory reasoning.
-Delegating control flow to a prompt would put that same fragility in charge of whether a correlation runs, what it
-is handed, and whether an artifact is written. So the reasoning is agentic and the sequencing is code: tools take
-only a test id, the pipeline order is a Python function, and the action gate is a Python function.
-
-Planned for Phase 6, as an addition rather than a replacement: an interactive orchestrator agent over the same
-tools, for a human asking "why is this test flaky?" - deterministic where correctness matters, agentic where
-exploration matters.
-
-"How to override" is not decoration: an agent that touches a repository must say how to tell it it was wrong. Two
-mechanisms are named - `[overrides] ignore_tests` in config, or the `flakeguard-override` label - and Phase 5
-implements both.
-
-## Acting, and knowing when not to (Phase 5)
-
-**The analysis target and the write target are different, on purpose.** FlakeGuard analyses `dask/distributed`, a
-public repository we do not own, and never opens anything there. Every issue and pull request goes to
-`target.scratch_repo` (this repository) and every PR targets `target.scratch_branch` (`scratch`). `dry_run = true` is
-the default; turning it off is refused at startup unless the write target differs from the analysis target and the
-scratch branch exists and is not `main`/`master`. The PR path re-asserts the base branch before any API call.
-
-**The gate is plain Python** (`flakeguard/gate.py`) - not a tool, not model-controlled. In order: an overridden test
-is never acted on; one decision per test per day (hard idempotency); fewer than `min_runs` runs -> review; classifier
-confidence below `action_threshold` -> review; verdict `unclear` -> review; already quarantined and still flaky ->
-nothing. The gate runs its cheap checks *before* the classifier, so a case it will block anyway costs no model call.
-The model decides what a test is; this function decides whether a repository gets touched. Tests pin it: the
-ambiguous fixture routes to review even if handed a 0.95 verdict, because it has 12 runs.
-
-**The artifact states the gate's decision, not the verdict's wish.** The drafter is told what the gate decided and
-why; "Recommended action" is the gate's reason in words, and the drafter agent is instructed never to propose a
-repository change the gate did not make.
-
-**Tools** (`flakeguard/actions.py`), all idempotent, all pointed at the scratch repo:
-- `open_issue` - an existing open issue for the test gets a comment, never a duplicate.
-- `open_quarantine_pr` - a branch adding one line to `.flakeguard/quarantine.txt` (and, once, a twelve-line
-  `conftest.py` hook that marks listed tests `xfail(strict=False)`: they keep running and reporting but cannot fail
-  the suite). FlakeGuard never merges. Because the test keeps running, its outcomes keep flowing: the ingest records
-  a quarantined test's `pytest.xfail` as a failure - for quarantined tests only - so the loop below has real data.
-- `review` - one shared "Review queue" issue, one comment per test per day, no code touched.
-- decisions are written back to `triage_decisions` in storage; the gate reads them.
-
-### Why quarantine is xfail, not skip
-
-The obvious quarantine marker is `pytest.mark.skip`. It would make the agent a one-way ratchet. A skipped test
-produces no observations - no pass, no fail, nothing in the JUnit file - so FlakeGuard could never gather the
-evidence that the test has recovered, and nothing would ever be un-quarantined except by a human remembering to.
-`pytest.mark.xfail(strict=False)` keeps the test running and reporting while preventing it from failing the suite:
-a pass is recorded as a pass, a failure is recorded by pytest as `<skipped type="pytest.xfail">`, which the ingest
-reads as a failure for quarantined tests only. The data keeps flowing, the streak can be measured, and reversal
-becomes possible at all. The quarantine list lives in one file and the hook is twelve lines, so a maintainer can
-read the whole mechanism in under a minute.
-
-**The un-quarantine loop.** Every sweep checks each quarantined test: if it has passed in every cell for
-`unquarantine_after_passes` consecutive runs since quarantine, FlakeGuard opens a PR removing the line and records
-the reversal. A failure resets the streak. It never reverses a quarantine made the same day. This is what keeps the
-agent from being a one-way ratchet.
-
-Two sweeps on the same day create nothing new and cost no model calls (`tests/test_sweep.py`, against an in-memory
-GitHub double with every model call stubbed). The sweep accepts `--as-of` to replay history with a declared clock;
-the un-quarantine demonstration below uses it, and says so.
-
-### The live run (2026-09-13)
-
-Against this repository's `scratch` branch, `dry_run = false`, raw logs in `probe-results/live-sweep-*.txt`:
-
-| step | result |
-|---|---|
-| (a) sweep: platform case, chronic flake, ambiguous case | issue [#1](https://github.com/tusharshah21/FlakeGuard/issues/1) (platform_specific @ 0.95); quarantine PR [#2](https://github.com/tusharshah21/FlakeGuard/pull/2) (chronic @ 0.85); review-queue issue [#3](https://github.com/tusharshah21/FlakeGuard/issues/3), one comment (12 runs < `min_runs`, never reached the model). 4 model calls. |
-| (b) the same sweep, same day | all three `none` - "already triaged today". **0 artifacts, 0 model calls.** Review queue still one comment. |
-| (c) replay, clock at 2026-08-25 | `test_handle_null_partitions_2`, whose real last failure was 2026-08-24, classified chronic @ 0.85 on 156 runs -> quarantine PR [#4](https://github.com/tusharshah21/FlakeGuard/pull/4), titled `[REPLAY as of 2026-08-25]`. 2 model calls. |
-| (c) replay, clock at 2026-09-13 | 35 consecutive clean runs since quarantine >= 20 -> un-quarantine PR, titled `[REPLAY 2026-08-25 -> 2026-09-13]`. **The agent reversed itself, on real data, with 0 model calls.** First opened as [#5](https://github.com/tusharshah21/FlakeGuard/pull/5) while #4 was unmerged; a human then merged #4 (the agent never merges) and the replay was re-run as [#7](https://github.com/tusharshah21/FlakeGuard/pull/7): one file, one line removed. |
-| (d) a human closes issue #1; sweep with a next-day clock | verdict unchanged, gate says issue, action layer finds the closed issue -> `closed_by_human`, nothing recreated, disagreement recorded. |
-
-Total for the run: 8 model calls, roughly $0.10. Every PR targets `scratch`; `conftest.py` and `.flakeguard/quarantine.txt` are absent from `main` and from `scratch` itself.
-
-Things that behaved differently live than against the in-memory double, all recorded rather than hidden:
-- **Open PRs each carried the quarantine hook** (#2 and #4) because each branched off `scratch` before anything merged. Once a human merged #4, the hook exists exactly once in the merged state - which is what the invariant claims - and the re-run un-quarantine PR #7 is a literal one-line removal. #5 was closed by the operators with a note pointing at #7 and labelled `flakeguard-superseded`.
-- **`closed_by_human` blocked the operators' own redo.** Closing #5 to replace it looked to the agent like a disagreement, exactly as designed. The escape hatch is a label, `flakeguard-superseded`, on the closed artifact; without it, a closed FlakeGuard issue or PR is never recreated.
-- **The ledger recorded intent, not outcome,** in two places (a blocked issue recorded as `issue`, a blocked un-quarantine as `unquarantine_pr`). Both now record what happened.
-
-**Issue identity is title-based - an operational caveat.** Cross-day idempotency ("comment on the existing issue, never open a duplicate") works by exact title match, because a dated title would defeat it. Issue titles therefore carry a date-free `[REPLAY]` prefix, and **editing a FlakeGuard issue's title by hand will cause the next sweep to open a new one.** We renamed #1 and #3 live to add the prefix and then verified the matcher resolves them: a next-day sweep commented on renamed #3 rather than opening a second queue, and the `closed_by_human` check matched renamed #1.
-
-## Running unattended (Phase 6)
-
-`.github/workflows/sweep.yml` runs on manual dispatch. It also carries a cron for 07:30 and 19:30 UTC - after each
-of dask/distributed's scheduled test runs has finished - which is **deliberately commented out, not unfinished**:
-the workflow is proven to run (two dispatches below, cold and warm), and a job firing twice daily through the
-submission and judging window adds risk with no demonstrative gain. Uncommenting the two `schedule:` lines enables
-it. Each run restores the SQLite store and the raw artifact cache from
-`actions/cache`, imports the committed decision ledger (`state/decisions.json`, existing rows win), ingests any new
-CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Three limits live in code, not in the prompt. Only tests with a failure in the last `recent_failure_days` are
-triaged. At most `max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable
-cases are recorded as `deferred` and picked up next time. And `max_model_calls_per_sweep` is a hard ceiling on model calls -
-classification, correlation and drafting alike: if something goes wrong and a sweep runs away unattended, it stops
-at the ceiling, records an `aborted` row in the ledger naming the count reached, and exits non-zero so the Actions
-run goes visibly red rather than quietly expensive. In normal operation a sweep spends about two calls per
-acted-on test, so the default of 30 is headroom rather than a working limit.
+**1,380 of 1,401 (test, cell) pairs: always present - 98.5%.** The 21 exceptions are not scattered. All 21 come
+from a single artifact: run `28571672400`, cell `windows-latest-py310-test-ci-notci1`, 2026-07-02 07:00 UTC, a
+`pytest.xml` holding 1,152 testcases against the cell's usual ~2,700 - pytest died mid-session and the tests
+simply never ran. No disagreement clusters by date, by test, or by any other cell, and none is a test that was
+conditionally skipped where the roster expected it. A truncated artifact also fails safe: absent tests produce no
+observation at all, never a false pass. This is why the "mostly inferred" denominator is sound here, and why we
+could not honestly build a conflict fixture where it misleads.
 
 ### Two budgets only compose if the cheaper check runs first
 
@@ -468,6 +372,65 @@ A third dispatch sits between them, deliberately red: with the ceiling temporari
 failed with exit code 1. That run exists to prove the alarm works - an earlier version piped the sweep through
 `tee`, so an aborted sweep reported success.
 
+### The environment-break category has no instance in this data
+
+dask's CI environment was stable for the whole window. An environment break - a fixed commit whose failures
+start on a date because a runner image, a transitive dependency or an upstream service moved - leaves a signature:
+zero failures before a boundary, a material rate after, across cells. We searched both long-lived commits
+(`40fcd99a8c`, 78 runs over 39 days; `dc182bda54`, 34 runs over 17 days). Failures run flat at ~3.5 per day, no
+day spikes, and no test's failures begin on a date. The statistic (`within_commit_over_time`) and the category
+(`environment_break`) are implemented; the data contains no instance; we did not fabricate one.
+
+## The artifacts it produced
+
+The Issues and Pull Requests tabs of this repository contain **agent-generated replay artifacts**: FlakeGuard ran
+against the historical CI data of `dask/distributed` and wrote its issues, quarantine PRs, un-quarantine PRs and
+review-queue entries here, into its own repository, because we do not own `dask/distributed` and never act on it.
+They are labelled `flakeguard-replay`, titled `[REPLAY ...]`, and each opens with a one-line disclaimer. Every PR
+targets the `scratch` branch - never `main` - and that is asserted in code, not configured: a PR against `main` would
+put the quarantine hook one merge away from this project's own test suite, so the action layer raises before any API
+call, and startup refuses live mode unless `scratch_branch` exists and is not `main`/`master`. The `scratch` branch
+carries three trivial tests under `tests/scratch_suite/` so the quarantine PRs have real files to sit beside; the
+quarantine list and the hook exist only on `scratch`-derived branches (a test asserts they are absent from `main`).
+No action of any kind was ever taken against `dask/distributed`.
+
+### The live run (2026-09-13)
+
+Against this repository's `scratch` branch, `dry_run = false`, raw logs in `probe-results/live-sweep-*.txt`:
+
+| step | result |
+|---|---|
+| (a) sweep: platform case, chronic flake, ambiguous case | issue [#1](https://github.com/tusharshah21/FlakeGuard/issues/1) (platform_specific @ 0.95); quarantine PR [#2](https://github.com/tusharshah21/FlakeGuard/pull/2) (chronic @ 0.85); review-queue issue [#3](https://github.com/tusharshah21/FlakeGuard/issues/3), one comment (12 runs < `min_runs`, never reached the model). 4 model calls. |
+| (b) the same sweep, same day | all three `none` - "already triaged today". **0 artifacts, 0 model calls.** Review queue still one comment. |
+| (c) replay, clock at 2026-08-25 | `test_handle_null_partitions_2`, whose real last failure was 2026-08-24, classified chronic @ 0.85 on 156 runs -> quarantine PR [#4](https://github.com/tusharshah21/FlakeGuard/pull/4), titled `[REPLAY as of 2026-08-25]`. 2 model calls. |
+| (c) replay, clock at 2026-09-13 | 35 consecutive clean runs since quarantine >= 20 -> un-quarantine PR, titled `[REPLAY 2026-08-25 -> 2026-09-13]`. **The agent reversed itself, on real data, with 0 model calls.** First opened as [#5](https://github.com/tusharshah21/FlakeGuard/pull/5) while #4 was unmerged; a human then merged #4 (the agent never merges) and the replay was re-run as [#7](https://github.com/tusharshah21/FlakeGuard/pull/7): one file, one line removed. |
+| (d) a human closes issue #1; sweep with a next-day clock | verdict unchanged, gate says issue, action layer finds the closed issue -> `closed_by_human`, nothing recreated, disagreement recorded. |
+
+Total for the run: 8 model calls, roughly $0.10. Every PR targets `scratch`; `conftest.py` and `.flakeguard/quarantine.txt` are absent from `main` and from `scratch` itself.
+
+Things that behaved differently live than against the in-memory double, all recorded rather than hidden:
+- **Open PRs each carried the quarantine hook** (#2 and #4) because each branched off `scratch` before anything merged. Once a human merged #4, the hook exists exactly once in the merged state - which is what the invariant claims - and the re-run un-quarantine PR #7 is a literal one-line removal. #5 was closed by the operators with a note pointing at #7 and labelled `flakeguard-superseded`.
+- **`closed_by_human` blocked the operators' own redo.** Closing #5 to replace it looked to the agent like a disagreement, exactly as designed. The escape hatch is a label, `flakeguard-superseded`, on the closed artifact; without it, a closed FlakeGuard issue or PR is never recreated.
+- **The ledger recorded intent, not outcome,** in two places (a blocked issue recorded as `issue`, a blocked un-quarantine as `unquarantine_pr`). Both now record what happened.
+
+**Issue identity is title-based - an operational caveat.** Cross-day idempotency ("comment on the existing issue, never open a duplicate") works by exact title match, because a dated title would defeat it. Issue titles therefore carry a date-free `[REPLAY]` prefix, and **editing a FlakeGuard issue's title by hand will cause the next sweep to open a new one.** We renamed #1 and #3 live to add the prefix and then verified the matcher resolves them: a next-day sweep commented on renamed #3 rather than opening a second queue, and the `closed_by_human` check matched renamed #1.
+
+### Running unattended
+
+`.github/workflows/sweep.yml` runs on manual dispatch. It also carries a cron for 07:30 and 19:30 UTC - after each
+of dask/distributed's scheduled test runs has finished - which is **deliberately commented out, not unfinished**:
+the workflow is proven to run (two dispatches below, cold and warm), and a job firing twice daily through the
+submission and judging window adds risk with no demonstrative gain. Uncommenting the two `schedule:` lines enables
+it. Each run restores the SQLite store and the raw artifact cache from
+`actions/cache`, imports the committed decision ledger (`state/decisions.json`, existing rows win), ingests any new
+CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Three limits live in code, not in the prompt. Only tests with a failure in the last `recent_failure_days` are
+triaged. At most `max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable
+cases are recorded as `deferred` and picked up next time. And `max_model_calls_per_sweep` is a hard ceiling on model calls -
+classification, correlation and drafting alike: if something goes wrong and a sweep runs away unattended, it stops
+at the ceiling, records an `aborted` row in the ledger naming the count reached, and exits non-zero so the Actions
+run goes visibly red rather than quietly expensive. In normal operation a sweep spends about two calls per
+acted-on test, so the default of 30 is headroom rather than a working limit.
+
 ### Writing is opt-in
 
 `dry_run = true` is the committed default and writing to a repository requires deliberately setting it false.
@@ -477,48 +440,6 @@ be created in <repo> on branch <branch>`. This is not theoretical caution. Durin
 `false` after a live run, and a later local test - intended only to check an exit code - opened a real issue
 ([#8](https://github.com/tusharshah21/FlakeGuard/issues/8), since closed and labelled `flakeguard-superseded`). The
 safe default and the one-way flag both exist because of that.
-
-## Two surfaces: `sweep` and `explain`
-
-FlakeGuard has one pipeline that decides and one that explores, and they are built on opposite principles.
-
-`flakeguard sweep` runs a fixed sequence from Python - health, gate, classify, correlate, draft, act - because
-that path can modify a repository, and because of the fragility experiment above: one sentence added to one verdict
-definition moved an unrelated verdict across the action threshold. Control flow that decides whether an artifact is
-written does not belong in a prompt.
-
-`flakeguard explain <test_id> "<question>"` is the opposite. A Strands agent gets the same four deterministic tools
-- `get_test_health`, `get_commit_context`, `classify_test`, `correlate_regression` - and sequences them itself,
-calling them in whatever order and as many times as the question needs. Exploration has no correct order, so
-imposing one only gets in the way. It is read-only **by construction**: the action layer is not in its toolset and
-`flakeguard/explain.py` does not import it, which `tests/test_explain.py` asserts so a later refactor cannot quietly
-add a writing tool. A per-explain ceiling (`max_explain_model_calls`) stops an exploratory loop from running away,
-and `--json` gives machine-readable output.
-
-Deterministic where correctness matters, agentic where exploration matters.
-
-The same invented-number check that governs the classifier applies here: every numeric token in the answer must
-appear in tool output. Over five explains (`probe-results/eval-explain.txt`), **2 of the numbers written were not
-traceable, and both were percentage conversions** - "passes roughly 98% of the time" from 8 failures in 407
-observations, and "failed consistently at 100%" from a p_hat of 1.000. Neither is false, and both are the kind of
-rounding a maintainer would do out loud; the check flags them because the rule is that numbers are quoted, not
-computed. It is also a reminder that the prose surface is looser than the artifact surface, which is exactly why
-only one of them can act.
-
-## The denominator under every interval is validated
-
-Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster
-says the test runs there. Every Wilson interval in the system rests on that inference, so we checked it against
-the data that does not depend on it. For every test that ever failed, and every cell in its roster, we asked: in
-the artifacts we actually parsed for that cell, is the test always present?
-
-**1,380 of 1,401 (test, cell) pairs: always present - 98.5%.** The 21 exceptions are not scattered. All 21 come
-from a single artifact: run `28571672400`, cell `windows-latest-py310-test-ci-notci1`, 2026-07-02 07:00 UTC, a
-`pytest.xml` holding 1,152 testcases against the cell's usual ~2,700 - pytest died mid-session and the tests
-simply never ran. No disagreement clusters by date, by test, or by any other cell, and none is a test that was
-conditionally skipped where the roster expected it. A truncated artifact also fails safe: absent tests produce no
-observation at all, never a false pass. This is why the "mostly inferred" denominator is sound here, and why we
-could not honestly build a conflict fixture where it misleads.
 
 ## Limitations
 
@@ -540,6 +461,16 @@ could not honestly build a conflict fixture where it misleads.
   that inference. Roster drift over the window is <= 6 tests added and 0 removed per cell, which is why the
   assumption holds here; `n_measured` and `n_inferred` are carried separately into every piece of evidence so the
   classifier can weigh it.
+- **Ground truth is hard, and one of our own labels is in doubt.** See the PR-branch fixture above: we labelled it
+  `platform_specific`, the classifier said `regression`, and a later reading of the same data supports the
+  classifier. The score stands unrevised, but the label may be the error rather than the verdict.
+- **`explain` converts to percentages.** Two of five explanations wrote a derived percentage ("passes roughly 98%
+  of the time") where the rule is to quote numbers as given. Arithmetically correct, and the kind of rounding a
+  maintainer does out loud, but it is the one place a model still computes.
+- **The conflict set is small and narrow.** Four cases, three of them the same failure mode. A good score there
+  demonstrates cell-concentration reasoning, not multi-signal reasoning in general.
+- **The scheduled sweep is deliberately disabled** during the submission window; it has been proven by manual
+  dispatch, cold and warm. Uncommenting two lines in `.github/workflows/sweep.yml` enables it.
 
 ## Prior art and how this differs
 
@@ -548,3 +479,41 @@ FlakeGuard does not read or adapt that code. The difference is in kind: their sc
 human must go read; FlakeGuard triages, decides, and acts - a quarantine PR, an issue with the correlated onset
 commit, and automatic un-quarantine when a test recovers. That the maintainers built a report at all is evidence
 they want this problem solved.
+
+## Setup
+
+Verified from a clean clone.
+
+```sh
+git clone https://github.com/tusharshah21/FlakeGuard && cd FlakeGuard
+uv sync                              # Python 3.11+; installs strands-agents, PyGithub, pydantic
+cp .env.example .env                 # GITHUB_TOKEN (public_repo scope) + Bedrock credentials
+uv run pytest                        # 48 tests: stats, gate, leakage, idempotency, read-only explain
+```
+
+`pytest` needs no credentials and no network: it runs against the committed fixtures. Everything below does need
+them.
+
+```sh
+uv run scripts/check_bedrock.py      # one Bedrock call must succeed
+uv run python -m flakeguard ingest   # ~90 days of dask/distributed CI -> flakeguard.db
+                                     # first run ~15 min / ~800 API requests; cached afterwards (~20 s / 3 requests)
+uv run scripts/reconcile.py          # storage must reproduce the probe's headline numbers exactly
+```
+
+Then look at one test, act on none:
+
+```sh
+uv run python -m flakeguard health  fixtures/regression_test_get_client.json
+uv run python -m flakeguard sweep   --recent --dry-run
+uv run python -m flakeguard explain "distributed.tests.test_gc::test_gc_diagnosis_cpu_time" \
+    "Why does this fail only on Windows?"
+```
+
+`dry_run = true` is the committed default and `--dry-run` overrides config in the safe direction only. To let
+FlakeGuard write, set `dry_run = false` and point `scratch_repo` / `scratch_branch` at a repository and a
+non-`main` branch you own; startup refuses anything else.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
