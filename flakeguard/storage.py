@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS rosters (
 
 class Storage:
     def __init__(self, path: str = "flakeguard.db"):
-        self.db = sqlite3.connect(path)
+        # check_same_thread=False: the explain agent's tools run in Strands' worker threads. SQLite itself
+        # serialises access, and every call from those threads is a read.
+        self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
 

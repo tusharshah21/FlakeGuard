@@ -15,6 +15,10 @@
 
 ## Deferred work
 
+- [ ] `explain` converts to percentages ("98% of the time") where the rule is to quote numbers as given. Harmless
+      in prose and arithmetically correct, but it is the one place a model still computes. Either tighten the
+      prompt or teach the checker to accept a derived percentage that matches its source.
+
 - [ ] Node 20 deprecation warnings on `actions/checkout`, `actions/cache`, `actions/upload-artifact`, `setup-uv`.
       Cosmetic; the runner forced Node 24 and the run succeeded. Bump action majors when convenient.
 - [ ] Correlation examines the latest failing commit, not the onset commit (see README limitations).

@@ -44,6 +44,7 @@ class Triage(BaseModel):
     recent_failure_days: int
     max_actions_per_sweep: int
     max_model_calls_per_sweep: int
+    max_explain_model_calls: int
 
 
 class Overrides(BaseModel):

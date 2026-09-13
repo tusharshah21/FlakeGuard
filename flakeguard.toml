@@ -37,6 +37,7 @@ dry_run = true                  # SAFE DEFAULT. Writing to a repository is opt-i
                                 # --dry-run to force dry regardless of this value. Startup prints the effective mode.
 recent_failure_days = 7         # the scheduled sweep triages tests that failed within this many days
 max_actions_per_sweep = 3       # new issues + quarantine PRs per sweep; the rest are deferred to the next sweep
+max_explain_model_calls = 10    # ceiling on model turns in one `explain`, so an exploratory loop cannot run away
 max_model_calls_per_sweep = 30  # hard ceiling on classify+correlate+draft calls; aborts the sweep, red and loud.
                                 # ~2 calls per acted-on test and the artifact cap (3) now gates inference, so a
                                 # full pass costs ~6-8; 30 is headroom for retries, not a working limit.

@@ -1,6 +1,7 @@
 """uv run python -m flakeguard ingest | health <fixture.json | test_id> | triage <fixture.json | test_id>
                           | sweep [--fixtures a.json b.json] [--tests id ...] [--all-failing | --recent] [--as-of ISO8601] [--dry-run]
-                          | decisions [YYYY-MM-DD] | ledger export|import <file>"""
+                          | decisions [YYYY-MM-DD] | ledger export|import <file>
+                          | explain <fixture.json | test_id> [question] [--json]"""
 import json
 import sys
 from pathlib import Path
@@ -73,6 +74,25 @@ elif cmd == "sweep":
         sweep(tests)
     except ModelBudgetExceeded as e:
         sys.exit(f"FlakeGuard aborted: {e}")   # non-zero exit: the Actions run goes red rather than silently expensive
+elif cmd == "explain":
+    # Interactive surface: the model sequences read-only tools itself. Never writes; see flakeguard/explain.py.
+    from .explain import DEFAULT_QUESTION, explain
+    from .orchestrator import configure
+    sys.stdout.reconfigure(encoding="utf-8")
+    args = sys.argv[2:]
+    as_json = "--json" in args
+    args = [a for a in args if a != "--json"]
+    test_id, question = args[0], " ".join(args[1:]) or DEFAULT_QUESTION
+    configure(cfg, [test_id] if test_id.endswith(".json") else [], force_dry=True, log=lambda *_: None)
+    if test_id.endswith(".json"):
+        test_id = json.loads(Path(test_id).read_text(encoding="utf-8"))["test_id"]
+    e = explain(test_id, question, cfg)
+    if as_json:
+        print(json.dumps({"test_id": e.test_id, "question": e.question, "answer": e.answer,
+                          "tool_calls": e.tool_calls, "model_calls": e.model_calls}, indent=1))
+    else:
+        tools = " -> ".join(e.tool_calls) or "none"
+        print(f"{e.test_id}\nQ: {e.question}\n\n{e.answer}\n\n[tools: {tools} | model turns: {e.model_calls}]")
 elif cmd == "ledger":
     # ledger export <file> | ledger import <file>  - the decision ledger is the state the gate reads; CI inherits it from here
     from .storage import Storage

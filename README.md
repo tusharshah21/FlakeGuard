@@ -445,6 +445,33 @@ be created in <repo> on branch <branch>`. This is not theoretical caution. Durin
 ([#8](https://github.com/tusharshah21/FlakeGuard/issues/8), since closed and labelled `flakeguard-superseded`). The
 safe default and the one-way flag both exist because of that.
 
+## Two surfaces: `sweep` and `explain`
+
+FlakeGuard has one pipeline that decides and one that explores, and they are built on opposite principles.
+
+`flakeguard sweep` runs a fixed sequence from Python - health, gate, classify, correlate, draft, act - because
+that path can modify a repository, and because of the fragility experiment above: one sentence added to one verdict
+definition moved an unrelated verdict across the action threshold. Control flow that decides whether an artifact is
+written does not belong in a prompt.
+
+`flakeguard explain <test_id> "<question>"` is the opposite. A Strands agent gets the same four deterministic tools
+- `get_test_health`, `get_commit_context`, `classify_test`, `correlate_regression` - and sequences them itself,
+calling them in whatever order and as many times as the question needs. Exploration has no correct order, so
+imposing one only gets in the way. It is read-only **by construction**: the action layer is not in its toolset and
+`flakeguard/explain.py` does not import it, which `tests/test_explain.py` asserts so a later refactor cannot quietly
+add a writing tool. A per-explain ceiling (`max_explain_model_calls`) stops an exploratory loop from running away,
+and `--json` gives machine-readable output.
+
+Deterministic where correctness matters, agentic where exploration matters.
+
+The same invented-number check that governs the classifier applies here: every numeric token in the answer must
+appear in tool output. Over five explains (`probe-results/eval-explain.txt`), **2 of the numbers written were not
+traceable, and both were percentage conversions** - "passes roughly 98% of the time" from 8 failures in 407
+observations, and "failed consistently at 100%" from a p_hat of 1.000. Neither is false, and both are the kind of
+rounding a maintainer would do out loud; the check flags them because the rule is that numbers are quoted, not
+computed. It is also a reminder that the prose surface is looser than the artifact surface, which is exactly why
+only one of them can act.
+
 ## The denominator under every interval is validated
 
 Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster
