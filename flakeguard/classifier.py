@@ -15,6 +15,7 @@ from .config import Config
 from .stats import Split, TestHealth
 
 VERDICTS = ("flaky", "regression", "platform_specific", "environment_break", "chronic", "unclear")
+MODEL_CALLS = {"classify": 0, "correlate": 0, "draft": 0}   # incremented at every structured_output call
 
 
 class Classification(BaseModel):
@@ -115,5 +116,6 @@ def make_agent(cfg: Config) -> Agent:
 def classify(h: TestHealth, cfg: Config, agent: Agent | None = None) -> tuple[Classification, str]:
     """Returns the classification and the exact evidence text the model saw."""
     evidence = render_evidence(h, cfg)
+    MODEL_CALLS["classify"] += 1
     result = (agent or make_agent(cfg)).structured_output(Classification, prompt=evidence)
     return result, evidence

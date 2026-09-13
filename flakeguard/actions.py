@@ -11,6 +11,8 @@ from .config import Config
 TITLE = "[FlakeGuard] {test_id}"
 REVIEW_TITLE = "[FlakeGuard] Review queue"
 OVERRIDE_LABEL = "flakeguard-override"
+REPLAY_LABEL = "flakeguard-replay"
+PROTECTED_BASES = {"main", "master", ""}
 QUARANTINE_FILE = ".flakeguard/quarantine.txt"
 CONFTEST = "conftest.py"
 CONFTEST_HOOK = '''# --- FlakeGuard quarantine hook -------------------------------------------------------------------
@@ -46,7 +48,8 @@ class Remote:
 
     def open_issues(self) -> list[dict]: ...
     def open_prs(self) -> list[dict]: ...
-    def create_issue(self, title: str, body: str) -> dict: ...
+    def create_issue(self, title: str, body: str, labels: list[str] = ()) -> dict: ...
+    def ensure_label(self, name: str, color: str, description: str) -> None: ...
     def comment(self, number: int, body: str) -> str: ...
     def labels_anywhere(self, title: str) -> set[str]: ...  # labels on any open or closed issue/PR with this title
     def closed_titled(self, title: str) -> bool: ...        # a closed issue or PR with exactly this title exists
@@ -56,6 +59,7 @@ class Remote:
     def get_file(self, path: str, ref: str) -> str | None: ...
     def put_file(self, path: str, content: str, message: str, branch: str) -> None: ...
     def create_pr(self, title: str, body: str, head: str, base: str) -> dict: ...
+    def add_labels(self, number: int, labels: list[str]) -> None: ...
 
 
 @dataclass
@@ -65,6 +69,7 @@ class MemoryRemote(Remote):
     comments: dict[int, list[str]] = field(default_factory=dict)
     files: dict[tuple[str, str], str] = field(default_factory=dict)   # (branch, path) -> content
     branches: dict[str, str] = field(default_factory=lambda: {"main": "0" * 40})
+    labels: set[str] = field(default_factory=set)
     _n: int = 0
 
     def _next(self):
@@ -74,11 +79,13 @@ class MemoryRemote(Remote):
     def open_issues(self): return [i for i in self.issues if i["state"] == "open"]
     def open_prs(self): return [p for p in self.prs if p["state"] == "open"]
 
-    def create_issue(self, title, body):
-        i = {"number": self._next(), "title": title, "body": body, "labels": set(), "state": "open"}
+    def create_issue(self, title, body, labels=()):
+        i = {"number": self._next(), "title": title, "body": body, "labels": set(labels), "state": "open"}
         i["html_url"] = f"memory://issues/{i['number']}"
         self.issues.append(i)
         return i
+
+    def ensure_label(self, name, color, description): self.labels.add(name)
 
     def comment(self, number, body):
         self.comments.setdefault(number, []).append(body)
@@ -91,22 +98,32 @@ class MemoryRemote(Remote):
         return any(x["title"] == title and x["state"] == "closed" for x in self.issues + self.prs)
 
     def default_branch(self): return "main"
-    def head_sha(self, branch): return self.branches[branch]
+
+    def head_sha(self, branch):
+        if branch not in self.branches:
+            raise KeyError(f"branch {branch!r} does not exist")
+        return self.branches[branch]
 
     def create_branch(self, name, from_sha):
         self.branches[name] = from_sha
+        src = next((b for b, sha in self.branches.items() if sha == from_sha and b != name), "main")
         for (b, p), c in list(self.files.items()):
-            if b == "main":
+            if b == src:
                 self.files[(name, p)] = c
 
     def get_file(self, path, ref): return self.files.get((ref, path))
     def put_file(self, path, content, message, branch): self.files[(branch, path)] = content
 
     def create_pr(self, title, body, head, base):
-        p = {"number": self._next(), "title": title, "body": body, "labels": set(), "state": "open", "head": head}
+        p = {"number": self._next(), "title": title, "body": body, "labels": set(), "state": "open", "head": head, "base": base}
         p["html_url"] = f"memory://pull/{p['number']}"
         self.prs.append(p)
         return p
+
+    def add_labels(self, number, labels):
+        for x in self.issues + self.prs:
+            if x["number"] == number:
+                x["labels"] |= set(labels)
 
 
 class GitHubRemote(Remote):
@@ -121,8 +138,17 @@ class GitHubRemote(Remote):
 
     def open_issues(self): return [self._d(i) for i in self.repo.get_issues(state="open") if i.pull_request is None]
     def open_prs(self): return [self._d(p, p.head.ref) for p in self.repo.get_pulls(state="open")]
-    def create_issue(self, title, body): return self._d(self.repo.create_issue(title=title, body=body))
+    def create_issue(self, title, body, labels=()): return self._d(self.repo.create_issue(title=title, body=body, labels=list(labels)))
     def comment(self, number, body): return self.repo.get_issue(number).create_comment(body).html_url
+
+    def ensure_label(self, name, color, description):
+        from github import GithubException
+        try:
+            self.repo.get_label(name)
+        except GithubException as e:
+            if e.status != 404:
+                raise
+            self.repo.create_label(name, color, description)
 
     def labels_anywhere(self, title):
         return set().union(*(self._d(i)["labels"] for i in self.repo.get_issues(state="all") if i.title == title), set())
@@ -157,6 +183,8 @@ class GitHubRemote(Remote):
         p = self.repo.create_pull(title=title, body=body, head=head, base=base)
         return self._d(p, head)
 
+    def add_labels(self, number, labels): self.repo.get_issue(number).add_to_labels(*labels)
+
 
 @dataclass
 class Outcome:
@@ -165,23 +193,39 @@ class Outcome:
     detail: str
 
 
-REPLAY_NOTE = ("**This is a dated replay against historical data, not a live claim about the repository's current state.** "
-               "FlakeGuard was run with a declared clock (`--as-of`), seeing only observations up to that instant. The runs and "
-               "outcomes are real; the date was chosen by the operators knowing what followed, because a recovery window of "
-               "twenty scheduled runs cannot otherwise be demonstrated inside a hackathon.")
+DISCLAIMER = ("**Agent-generated replay artifact.** FlakeGuard analysed the public CI history of `dask/distributed` and wrote "
+              "this here, in its own repository's scratch area; no action of any kind was taken against `dask/distributed`. "
+              "Every PR targets the `{branch}` branch, never `main`. The runs and outcomes cited are real.")
+CLOCK_NOTE = (" This run used a declared clock (`--as-of {as_of}`): FlakeGuard saw only observations up to that instant. The date "
+              "was chosen by the operators knowing what followed, because a recovery window of twenty scheduled runs cannot "
+              "otherwise be demonstrated inside a hackathon.")
 
 
 class Actions:
-    def __init__(self, cfg: Config, remote: Remote | None, log=print, replay: str | None = None):
-        """`replay` is the as-of date when running with a declared clock; it is stamped on every PR title and body."""
-        self.cfg, self.remote, self.log, self.replay = cfg, remote, log, replay
+    def __init__(self, cfg: Config, remote: Remote | None, log=print, as_of: str | None = None, today: str | None = None):
+        """Every artifact is a replay artifact: title prefix [REPLAY ...], label flakeguard-replay, first-line disclaimer.
+        `as_of` is the declared clock when one was used; `today` is the sweep date otherwise."""
+        self.cfg, self.remote, self.log, self.as_of, self.today = cfg, remote, log, as_of, today
         self.dry = cfg.triage.dry_run or remote is None
+        self._labels_ready = False
 
     def _stamp(self, title: str, body: str, span: str | None = None) -> tuple[str, str]:
-        if not self.replay:
-            return title, body
-        label = f"[REPLAY {span or 'as of ' + self.replay}]"
-        return f"{label} {title}", f"{label} {REPLAY_NOTE}\n\n{body}"
+        date = (self.as_of or self.today or "")[:10]
+        label = f"[REPLAY {span or 'as of ' + date}]"
+        note = DISCLAIMER.format(branch=self.cfg.target.scratch_branch) + (CLOCK_NOTE.format(as_of=self.as_of[:10]) if self.as_of else "")
+        return f"{label} {title}".strip(), f"{label} {note}\n\n{body}"
+
+    def _base(self) -> str:
+        """The only branch a PR may target. Raises - never warns, never falls back - on anything protected or unset."""
+        base = self.cfg.target.scratch_branch
+        if base.lower() in PROTECTED_BASES:
+            raise RuntimeError(f"refusing to open a PR against {base!r}: scratch_branch must be a dedicated non-main branch")
+        return base
+
+    def _ensure_labels(self):
+        if not self._labels_ready:
+            self.remote.ensure_label(REPLAY_LABEL, "1d76db", "Agent-generated replay artifact from FlakeGuard; see README")
+            self._labels_ready = True
 
     def _dry(self, what) -> Outcome:
         self.log(f"[dry-run] would {what} in {self.cfg.target.scratch_repo or '<scratch_repo unset>'}")
@@ -202,22 +246,24 @@ class Actions:
             return Outcome("issue_comment", url, f"commented on existing issue #{existing['number']}")
         if self.remote.closed_titled(title):
             return Outcome("closed_by_human", None, "a human closed the previous issue; not recreated, disagreement recorded")
-        i = self.remote.create_issue(title, self._stamp("", body)[1])
+        self._ensure_labels()
+        i = self.remote.create_issue(title, self._stamp("", body)[1], [REPLAY_LABEL])
         return Outcome("issue", i["html_url"], f"opened issue #{i['number']}")
 
     def _quarantine_change(self, test_id: str, body: str, add: bool, span: str | None = None) -> Outcome:
         kind = "quarantine_pr" if add else "unquarantine_pr"
         verb = "quarantine" if add else "un-quarantine"
+        base = self._base()  # raises before any API call
         branch = f"flakeguard/{verb}/{slug(test_id)}"
         title, body = self._stamp(f"[FlakeGuard] {verb} {test_id}", body, span)
         if self.dry:
-            return self._dry(f"open PR {title!r} on branch {branch} editing {QUARANTINE_FILE}")
+            return self._dry(f"open PR {title!r} from {branch} into {base} editing {QUARANTINE_FILE}")
         existing = next((p for p in self.remote.open_prs() if p["head"] == branch), None)
         if existing:
             return Outcome("noop", existing["html_url"], f"PR #{existing['number']} already open for this branch")
         if self.remote.closed_titled(title):
             return Outcome("closed_by_human", None, "a human closed the previous PR; not recreated, disagreement recorded")
-        base = self.remote.default_branch()
+        assert base == self.cfg.target.scratch_branch and base.lower() not in PROTECTED_BASES
         self.remote.create_branch(branch, self.remote.head_sha(base))
         current = self.remote.get_file(QUARANTINE_FILE, base) or "# Tests quarantined by FlakeGuard. One id per line. Remove a line to un-quarantine.\n"
         lines = [ln for ln in current.splitlines() if ln.strip()]
@@ -229,6 +275,8 @@ class Actions:
         if add and self.remote.get_file(CONFTEST, base) is None:
             self.remote.put_file(CONFTEST, CONFTEST_HOOK, "FlakeGuard: add quarantine hook", branch)
         p = self.remote.create_pr(title, body, branch, base)
+        self._ensure_labels()
+        self.remote.add_labels(p["number"], [REPLAY_LABEL])
         return Outcome(kind, p["html_url"], f"opened PR #{p['number']} (never merged by FlakeGuard)")
 
     def open_quarantine_pr(self, test_id: str, body: str) -> Outcome:
@@ -244,6 +292,8 @@ class Actions:
         marker = f"<!-- flakeguard-review {test_id} {today} -->"
         queue = next((i for i in self.remote.open_issues() if i["title"] == REVIEW_TITLE), None)
         if queue is None:
-            queue = self.remote.create_issue(REVIEW_TITLE, "Low-confidence cases FlakeGuard declined to act on. One comment per test per day; nothing here changes code.")
+            self._ensure_labels()
+            queue = self.remote.create_issue(REVIEW_TITLE, self._stamp("", "Low-confidence cases FlakeGuard declined to act on. "
+                                             "One comment per test per day; nothing here changes code.")[1], [REPLAY_LABEL])
         url = self.remote.comment(queue["number"], f"{marker}\n{body}")
         return Outcome("review", url, f"queued on issue #{queue['number']}")

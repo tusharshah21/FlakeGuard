@@ -26,7 +26,9 @@ def world(monkeypatch):
     cfg = load(ROOT / "flakeguard.toml").model_copy(deep=True)
     cfg.triage.dry_run = False
     cfg.target.scratch_repo = "someone/scratch"
+    cfg.target.scratch_branch = "scratch"
     remote = MemoryRemote()
+    remote.branches["scratch"] = "1" * 40
     store = Storage(":memory:")
     calls = {"classify": 0}
 
@@ -85,7 +87,8 @@ def test_quarantine_pr_edits_the_list_adds_the_hook_and_never_merges(world):
     assert pr["state"] == "open" and pr["head"].startswith("flakeguard/quarantine/")
     assert FLAKE in remote.files[(pr["head"], QUARANTINE_FILE)]
     assert "pytest.mark.xfail" in remote.files[(pr["head"], CONFTEST)]
-    assert (("main", QUARANTINE_FILE) not in remote.files)  # nothing landed on the default branch
+    assert pr["base"] == "scratch" and all(b != "main" for (b, _) in remote.files)  # nothing near main
+    assert "flakeguard-replay" in remote.labels
 
 
 def test_regression_fixture_has_too_few_runs_to_act(world):
@@ -105,10 +108,10 @@ def test_unquarantine_reverses_a_prior_quarantine(world):
               for i in range(25) for c in cells]
     run("2026-10-26", [], extra_rows={FLAKE: future})   # a later sweep with nothing to triage still runs the un-quarantine pass
     kinds = [p["title"] for p in remote.prs]
-    # every run in this test uses a declared clock, so every PR title carries the replay label
     assert kinds == [f"[REPLAY as of 2026-09-13] [FlakeGuard] quarantine {FLAKE}",
                      f"[REPLAY 2026-09-13 -> 2026-10-26] [FlakeGuard] un-quarantine {FLAKE}"]
-    assert all(p["body"].startswith("[REPLAY") and "dated replay" in p["body"] for p in remote.prs)
+    assert all(p["body"].startswith("[REPLAY") and "replay artifact" in p["body"] and "declared clock" in p["body"] for p in remote.prs)
+    assert all("flakeguard-replay" in i["labels"] for i in remote.issues)
     assert FLAKE not in remote.files[(remote.prs[1]["head"], QUARANTINE_FILE)]
     assert store.quarantined_at(FLAKE) is None
 

@@ -8,7 +8,7 @@ import re
 from pydantic import BaseModel, Field
 from strands import Agent
 
-from .classifier import Classification, make_agent
+from .classifier import MODEL_CALLS, Classification, make_agent
 from .config import Config
 from .correlation import Correlation
 from .gate import Decision
@@ -65,6 +65,7 @@ def draft(test_id: str, health: TestHealth, cls: Classification, evidence: str, 
         f"GATE DECISION: {decision.action} - {decision.reason}",
         f"WHAT THAT MEANS: {ACTION_TEXT[decision.action]}",
     ])
+    MODEL_CALLS["draft"] += 1
     d = (agent or make_drafter_agent(cfg)).structured_output(Draft, prompt=drafter_input)
     allowed = _numbers(evidence) | _numbers(drafter_input)
     invented = sorted(_numbers(d.summary + " " + d.recommended_action) - allowed)

@@ -13,9 +13,9 @@ from pathlib import Path
 
 from strands import tool
 
-from .actions import Actions, GitHubRemote, Outcome, Remote
+from .actions import PROTECTED_BASES, Actions, GitHubRemote, Outcome, Remote
 from .baseline import episode
-from .classifier import Classification, classify, render_evidence
+from .classifier import MODEL_CALLS, Classification, classify, render_evidence
 from .config import Config, load
 from .correlation import Correlation, correlate
 from .drafter import draft
@@ -58,12 +58,21 @@ def configure(cfg: Config | None = None, fixture_paths: list[str] = (), remote: 
     for p in fixture_paths:
         fx = json.loads(Path(p).read_text(encoding="utf-8"))
         fixtures[fx["test_id"]] = fx["observations"]
-    if remote is None and not cfg.triage.dry_run:
+    if not cfg.triage.dry_run:
+        # Two invariants, refused at startup before any model or API call. (1) The write target is never the analysis
+        # target. (2) PRs only ever target scratch_branch, which must exist and must not be main/master.
         if not cfg.target.scratch_repo or cfg.target.scratch_repo == cfg.target.repo:
             raise SystemExit("dry_run is off but scratch_repo is unset or equals the analysis target; refusing to act")
-        remote = GitHubRemote(cfg.target.scratch_repo, os.environ["GITHUB_TOKEN"])
+        if cfg.target.scratch_branch.lower() in PROTECTED_BASES:
+            raise SystemExit(f"dry_run is off but scratch_branch is {cfg.target.scratch_branch!r}; it must be a dedicated non-main branch")
+        remote = remote or GitHubRemote(cfg.target.scratch_repo, os.environ["GITHUB_TOKEN"])
+        try:
+            remote.head_sha(cfg.target.scratch_branch)
+        except Exception as e:
+            raise SystemExit(f"dry_run is off but scratch_branch {cfg.target.scratch_branch!r} does not exist in {cfg.target.scratch_repo}: {e}")
+    today = (as_of or datetime.now(timezone.utc).isoformat())[:10]
     _rt = Runtime(cfg, store or Storage(cfg.ingest.db_path), GitHub(cfg.target.repo, cfg.ingest.cache_dir),
-                  Actions(cfg, remote, log, replay=as_of[:10] if as_of else None), fixtures, as_of)
+                  Actions(cfg, remote, log, as_of=as_of, today=today), fixtures, as_of)
     return _rt
 
 
@@ -187,8 +196,7 @@ def unquarantine_pass() -> list[tuple[str, int, Outcome]]:
             "## How to override",
             "If you want the test to stay quarantined, close this PR and apply the label `flakeguard-override`.",
         ])
-        span = f"{quarantined_at[:10]} -> {r.today}" if r.as_of else None
-        out = r.actions.open_unquarantine_pr(test_id, body, span)
+        out = r.actions.open_unquarantine_pr(test_id, body, span=f"{quarantined_at[:10]} -> {r.today}")
         r.store.record_decision(test_id, r.now, None, None, "unquarantine_pr", f"{clean} clean runs since quarantine", out.url, r.actions.dry)
         results.append((test_id, clean, out))
     return results
@@ -209,4 +217,5 @@ def sweep(test_ids: list[str], log=print) -> list[Triage]:
         results.append(t)
     for test_id, clean, out in unquarantine_pass():
         log(f"  {test_id.split('::')[-1]:50s} {'quarantined':22s} gate={'unquarantine_pr':14s} -> {out.kind}: {out.detail} ({clean} clean runs)")
+    log(f"  model calls this process: {dict(MODEL_CALLS)} (total {sum(MODEL_CALLS.values())})")
     return results

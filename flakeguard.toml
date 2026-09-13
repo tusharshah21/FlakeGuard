@@ -2,7 +2,8 @@
 
 [target]
 repo = "dask/distributed"
-scratch_repo = ""  # owner/name of a repo you own; Phase 5 opens real issues/PRs here
+scratch_repo = "tusharshah21/FlakeGuard"   # the ONLY repo FlakeGuard writes to; never the analysis target
+scratch_branch = "scratch"                  # the ONLY base branch PRs may target; never main. Asserted in code.
 workflow = "tests.yaml"
 source = "junit_artifacts"                          # Source A, pooled across matrix cells; see probe-results/
 exclude_cell_prefixes = ["ubuntu-latest-mindeps-"]  # distinct dependency env; never pooled with the rest
@@ -32,7 +33,7 @@ window_runs = 50
 min_runs = 15                   # fewer runs in the window than this -> review, never act
 action_threshold = 0.75         # classifier confidence below this -> review, never act
 unquarantine_after_passes = 20  # a quarantined test with this many consecutive clean runs since quarantine is un-quarantined
-dry_run = true                  # flip only against scratch_repo, never against the analysis target
+dry_run = true                  # writes go to scratch_repo/scratch_branch only; startup refuses anything else
 
 [overrides]
 ignore_tests = []               # test ids FlakeGuard must never act on; the label flakeguard-override does the same per artifact

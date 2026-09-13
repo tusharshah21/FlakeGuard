@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class Target(BaseModel):
     repo: str
     scratch_repo: str
+    scratch_branch: str
     workflow: str
     source: str
     exclude_cell_prefixes: list[str]

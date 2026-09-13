@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from strands import Agent
 
 from .baseline import episode
-from .classifier import make_agent
+from .classifier import MODEL_CALLS, make_agent
 from .config import Config
 from .stats import TestHealth
 
@@ -59,4 +59,5 @@ def make_correlation_agent(cfg: Config) -> Agent:
 
 def correlate(test_id: str, health: TestHealth, ctx: dict, cfg: Config, agent: Agent | None = None) -> tuple[Correlation, str]:
     prompt = build_prompt(test_id, health, ctx, cfg)
+    MODEL_CALLS["correlate"] += 1
     return (agent or make_correlation_agent(cfg)).structured_output(Correlation, prompt=prompt), prompt
