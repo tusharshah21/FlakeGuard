@@ -1,0 +1,2 @@
+# Tests quarantined by FlakeGuard. One id per line. Remove a line to un-quarantine.
+distributed.tests.test_jupyter::test_shutdowns_cleanly
