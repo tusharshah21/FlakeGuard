@@ -145,6 +145,42 @@ PR runs was a regression, and every masked flake on `main` failed in 1-3 cells. 
 commit is therefore a strong prior on category before any probability is computed, and `stats.py` reports it as a
 first-class statistic.
 
+## Why a model - measured, not asserted
+
+A threshold rule on the Wilson interval (`flakeguard/baseline.py`) classifies the three primary fixtures correctly.
+So does the model. The question is what happens where a single signal is misleading. We built a conflict set of
+four real cases from the data - **three are the same failure mode (failures concentrated in one cell or one OS)
+and one is a `cells_present` trap**, so a good score here demonstrates cell-concentration reasoning specifically,
+not multi-signal reasoning in general - and ran baseline and classifier over every fixture ten times at
+temperature 0 (`scripts/eval_classifier.py --runs 10`, Claude Sonnet 4.5 on Bedrock, raw output in
+`probe-results/eval-phase3-sonnet45-10runs.txt`).
+
+| fixture | truth | baseline | classifier (10 runs) | confidence |
+|---|---|---|---|---|
+| regression `test_get_client` | regression | regression | regression x10 | 0.95 |
+| regression `test_server_listen` | regression | regression | regression x10 | 0.95 |
+| flake `test_shutdowns_cleanly` | flaky / chronic | flaky | chronic x10 | 0.85 |
+| ambiguous `test_handle_null_partitions_2` | unclear | unclear | unclear x10 | 0.40 |
+| conflict: all 14 failures in one cell | platform_specific | flaky | **platform_specific x10** | 0.95 |
+| conflict: all 22 failures on Windows, 4 cells | platform_specific | flaky | **platform_specific x10** | 0.92 |
+| conflict: PR branch, episode 5/17 all Windows | platform_specific | unclear | **regression x10** (wrong) | 0.40-0.75 |
+| trap: 9/9 in the 9 cells where the test exists | regression | regression | **environment_break x10** (wrong) | 0.95 |
+
+**Primary set: baseline 4/4, classifier 4/4. Conflict set: baseline 1/4, classifier 2/4.** Zero verdict flips
+across the ten runs; zero invented numbers in 80 outputs (every numeric token in the model's prose was checked
+against the evidence it was given).
+
+The two misses are real and stay in the table. On the PR-branch case the model let the test-level pooled interval
+(which covers the earlier 17/17 commits) outweigh the episode's Windows-only concentration; its own
+`conflicting_signals` field names the platform evidence it then under-weighted. On the trap case it read the
+between-commit jump from 0/9 to 9/9 as an environment break; the definition asks for a within-commit boundary.
+Neither has been tuned away: the pre-commitment was to report the number we got.
+
+What the model adds over the rule, on this evidence: it catches concentration the pooled rate hides (2 of 3
+platform cases), it never fabricates a statistic, and every verdict carries a `conflicting_signals` line that
+says what pointed the other way - which is the part a human reviewer reads. The action gate in Phase 5 sits
+on top of both, so a 0.40 verdict never touches the repository regardless of who produced it.
+
 ### Two findings from looking for hard cases
 
 **dask's CI environment was stable for the whole window.** An environment break - a fixed commit whose failures

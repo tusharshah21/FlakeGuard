@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8")  # model prose may contain non-cp1252 characters on Windows
+
 from flakeguard.baseline import classify as baseline_classify
 from flakeguard.config import load
 from flakeguard.stats import Thresholds, test_health

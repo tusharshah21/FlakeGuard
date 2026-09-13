@@ -35,5 +35,5 @@ unquarantine_after_passes = 20
 dry_run = true
 
 [bedrock]
-model_id = "global.anthropic.claude-sonnet-4-6"  # strands default; override per region
+model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"  # Sonnet 4.6 pending the Anthropic use-case form on this account
 region = "us-east-1"

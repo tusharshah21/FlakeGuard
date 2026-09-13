@@ -1,0 +1,355 @@
+
+===== run 1/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     wilson95 [0.007, 0.189] spans the flaky threshold of 0.1
+    conflicting: within_commit_over_time shows shift +0.200 meeting onset threshold 0.2, suggesting environment_break; but only 1 measured observation of 26 total (mostly inferred) and failures < 3 prevents concentrated classification despite top_cell_share 1.00
+    reasoning:   The episode wilson95 interval [0.007, 0.189] straddles the flaky threshold of 0.1, preventing a clear classification. With only 1 measured observation out of 26 and a single failure, the evidence is too weak to distinguish between flaky, environment_break (suggested by the +0.200 within-commit shift), or random noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     concentrated True (top_cell_share 1.00, top_os ubuntu-latest share 1.00)
+    conflicting: Episode wilson95 upper bound 0.015 meets flaky threshold <= 0.1, and recovery True indicates flaky behavior.
+    reasoning:   All 14 failures across 3211 observations occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00, meeting the concentrated threshold. Concentration overrides the pooled interval, making this platform_specific despite flaky-like recovery patterns.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override the pooled interval per the rules.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold. Concentration on one platform overrides the pooled rate analysis, making this platform_specific rather than flaky.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: The episode is concentrated (top_os windows-latest share 1.00) pointing toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows broad impact. The largest shift -0.806 shows improvement rather than degradation.
+    reasoning:   The episode wilson95 lower bound 0.133 does not meet the regression threshold of 0.5, ruling out regression by definition. However, the episode concentrated flag is True with top_os windows-latest share 1.00, meeting the platform_specific criteria despite the pooled data showing failures across all 17 cells earlier in the window.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The episode wilson95 upper bound 0.038 meets the flaky threshold (≤0.1) and failures are spread across 5 of 12 cells with concentrated False, but spread_recovery_commits 9 exceeds the chronic threshold of 3. This is a flaky pattern that has persisted across many commits with recoveries, making it chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then success)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, meeting the regression criteria. The test failed universally at commit 9ce93727b7 then passed completely at the next commit, indicating a true regression that was subsequently fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift shows failure rate 17/17 before -> 0/17 after at a4b5b644ac, suggesting this might be environment_break, but the episode is the most recent commit so the pattern is regression at that point
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (cells_failed 17 of cells_present 17), confirming broad rather than platform-specific impact. The subsequent commit shows complete recovery, but the episode itself meets the regression definition.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 2/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False blocks platform_specific despite top_cell_share 1.00 and top_os share 1.00; only failures 1 prevents concentration flag
+    reasoning:   The episode confidence interval [0.007, 0.189] spans both the flaky threshold (0.1 upper bound) and the unclear zone, with n=26 mostly inferred (25/26). The within_commit shift of +0.200 suggests environment_break, but failures are not "across cells" (only 1 of 5 cells failed), and the concentrated flag is False because failures=1 is below the threshold of 3.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_cell_share 1.00
+    conflicting: Episode wilson95 upper bound 0.015 is below the flaky threshold 0.1, and recovery True suggests flaky behavior.
+    reasoning:   All 14 failures across the pooled data and all 3 failures in the episode occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and concentrated True. The concentration rule overrides the pooled rate, making this platform_specific despite the low failure rate and recovery pattern.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override pooled rate considerations.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). Concentration in one platform overrides the low pooled failure rate that would otherwise suggest flaky behavior.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: The episode is concentrated (top_os windows-latest share 1.00) pointing toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows broad impact. The largest shift -0.806 shows improvement rather than degradation.
+    reasoning:   The episode wilson95 lower bound 0.133 does not meet the regression threshold of 0.5, ruling out regression by definition. However, the episode concentrated flag is True with top_os windows-latest share 1.00, meeting the platform_specific criteria despite the pooled data showing failures across all 17 cells earlier in the window.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then resolved)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, meeting the regression criteria. The test failed universally at commit 9ce93727b7 then immediately resolved, consistent with a regression that was quickly fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift shows failure rate 17/17 before -> 0/17 after at a4b5b644ac, suggesting this might be environment_break, but the episode is the most recent commit so this is a regression that was later fixed
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (top_cell_share 0.06, top_os_share 0.35, concentrated False), meeting the regression criteria. The subsequent commit fixed all failures, but the episode itself represents a clear regression.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (top_cell_share 0.11, top_os_share 0.44), indicating a broad environment break rather than platform-specific issues.
+
+===== run 3/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False despite top_cell_share 1.00 because failures 1 < 3; recovery True suggests flaky pattern
+    reasoning:   The episode confidence interval [0.007, 0.189] spans the flaky threshold (0.1), preventing a clear classification. While there is recovery and the upper bound is near flaky territory, n=26 with only 1 measured observation (25 inferred) and 1 failure provides insufficient evidence to confidently distinguish between flaky behavior and noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     concentrated True (top_cell_share 1.00, top_os_share 1.00)
+    conflicting: Episode wilson95 upper bound 0.015 suggests flaky pattern, but concentration overrides pooled rate per rules.
+    reasoning:   All 14 failures across 3211 observations occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00 meeting the concentrated threshold. The rules explicitly state that concentration overrides the pooled interval, making this platform_specific despite the low pooled rate.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override pooled rate considerations.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). Concentration in one platform overrides the low pooled failure rate that would otherwise suggest flaky behavior.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: The episode is concentrated (top_os windows-latest share 1.00) pointing toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows broad impact. The largest shift -0.806 shows improvement rather than degradation.
+    reasoning:   The episode wilson95 lower bound 0.133 does not meet the regression threshold of 0.5, ruling out regression by definition. However, the episode concentrated flag is True with top_os windows-latest share 1.00, meeting the platform_specific criteria despite the pooled data showing failures across all 17 cells earlier in the window.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The episode wilson95 upper bound 0.038 meets the flaky threshold (≤0.1) and failures are spread across 5 of 12 cells (concentrated False), but spread_recovery_commits 9 exceeds the chronic threshold of 3. This is a flaky pattern that has persisted across many commits with recoveries, making it chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then resolved)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (concentrated False), meeting the regression criteria. The test failed universally at commit 9ce93727b7 then immediately resolved, indicating a true regression that was quickly fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift shows failure rate 17/17 before -> 0/17 after at a4b5b644ac, suggesting this might be environment_break, but the episode is the commit *before* the fix, making it a regression that was subsequently fixed
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (concentrated False), meeting the regression criteria. The subsequent commit fixed all failures, confirming this was a true regression at commit 25eb507474.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (concentrated False, top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 4/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     wilson95 [0.007, 0.189] spans the flaky threshold of 0.1
+    conflicting: within_commit_over_time shows shift +0.200 meeting onset threshold 0.2, suggesting environment_break; but only 1 measured observation of 26 total (mostly inferred) and failures < 3 prevents concentrated classification despite top_cell_share 1.00
+    reasoning:   The episode wilson95 interval [0.007, 0.189] straddles the flaky threshold of 0.1, preventing a clear classification. With only 1 measured observation out of 26 and a single failure, the evidence is too weak to distinguish between flaky, environment_break (suggested by the +0.200 within-commit shift), or random noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_cell_share 1.00
+    conflicting: Episode wilson95 upper bound 0.015 is below the flaky threshold 0.1, and recovery True suggests flaky behavior.
+    reasoning:   All 14 failures across the test level and all 3 failures in the episode are concentrated in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00, meeting the concentrated flag. Concentration overrides the pooled interval, making this platform_specific rather than flaky.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override pooled rate considerations.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). Concentration in one platform overrides the low pooled failure rate and recovery pattern.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: Episode concentrated True and top_os windows-latest share 1.00 point toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows full spread, but the episode does not meet the regression threshold (0.133 < 0.5). The largest shift -0.806 shows a dramatic improvement rather than onset.
+    reasoning:   The episode wilson95 lower bound is 0.133, which does not meet the regression threshold of 0.5. However, the pooled data shows wilson95 [0.541, 0.696] meeting the threshold with failures in all 17 cells, but episode concentration (all failures on windows-latest) conflicts with the regression pattern requirement of cross-platform spread.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The episode wilson95 upper bound 0.038 meets the flaky threshold (≤0.1) and failures are spread across 5 of 12 cells with concentrated False, but spread_recovery_commits 9 exceeds the chronic threshold of 3. This is a flaky pattern that has persisted across many commits with recoveries, making it chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then success)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, meeting the regression criteria. The test failed universally at commit 9ce93727b7 then passed completely at the next commit, indicating a true regression that was subsequently fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift shows failure rate 17/17 before -> 0/17 after at a4b5b644ac, suggesting this might be environment_break, but the episode is the commit *before* the fix, making it a regression that was subsequently fixed
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (concentrated False), meeting the regression criteria. The subsequent commit fixed all failures, confirming this was a true regression at commit 25eb507474.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (concentrated False, top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 5/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False despite top_cell_share 1.00 because failures 1 < 3; n 26 with only measured 1
+    reasoning:   The episode confidence interval [0.007, 0.189] spans the flaky threshold (0.1), preventing a clear classification. With only 1 measured observation out of 26 total and a single failure, the sample size is too small to confidently distinguish between flaky behavior and other patterns.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     concentrated True (top_cell_share 1.00, top_os ubuntu-latest share 1.00)
+    conflicting: Episode wilson95 upper bound 0.015 meets flaky threshold <= 0.1, and recovery True indicates flaky behavior.
+    reasoning:   All 14 failures across 3211 observations occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00, meeting the concentrated threshold. Concentration overrides the pooled interval, making this platform_specific despite flaky-like recovery patterns.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override pooled rate considerations.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). Concentration in one platform overrides the low pooled failure rate and recovery pattern.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: Episode concentrated True and top_os windows-latest share 1.00 point toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows full spread, but the episode does not meet the regression threshold (0.133 < 0.5). The largest shift -0.806 shows a dramatic improvement rather than onset.
+    reasoning:   The episode wilson95 lower bound is 0.133, which does not meet the regression threshold of 0.5. However, the pooled data shows wilson95 [0.541, 0.696] meeting the threshold with failures in all 17 cells, but episode concentration (all failures on windows-latest) conflicts with the regression pattern requirement of cross-platform spread.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then fixes)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, indicating broad impact rather than platform-specific. The test failed universally at commit 9ce93727b7 and was fixed in the next commit, consistent with a regression introduced then resolved.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after a4b5b644ac with shift -1.000, suggesting the issue was fixed immediately rather than being a persistent regression
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 cells_present (17/17), meeting both criteria for regression. The test failed universally at commit 25eb507474 then passed completely at the next commit, indicating a true regression that was quickly fixed.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (concentrated False, top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 6/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     n 26 = measured 1 + inferred 25
+    conflicting: wilson95 [0.007, 0.189] spans the flaky threshold of 0.1; within_commit_over_time shift +0.200 meets onset threshold but only 1 failure total; recovery_commits 1 suggests flaky but sample too small
+    reasoning:   The episode has only 1 measured observation out of 26 total, making the evidence too weak to confidently classify. The wilson95 interval [0.007, 0.189] spans the flaky threshold (0.1), and while there is recovery and the within-commit shift meets the onset threshold, a single failure cannot reliably distinguish between flaky, environment_break, or noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     concentrated True (top_cell_share 1.00, top_os_share 1.00)
+    conflicting: Episode wilson95 upper bound 0.015 suggests flaky pattern, but concentration overrides pooled rate per rules.
+    reasoning:   All 14 failures across 3211 observations occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00 meeting the concentrated threshold. The rules explicitly state that concentration overrides the pooled interval, making this platform_specific despite the low pooled rate.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override pooled rate considerations.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). Concentration in one platform overrides the low pooled failure rate and recovery pattern.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: Episode concentrated True and top_os windows-latest share 1.00 point toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows full spread, but the episode does not meet the regression threshold (0.133 < 0.5). The largest shift -0.806 shows a dramatic improvement rather than onset.
+    reasoning:   The episode wilson95 lower bound is 0.133, which does not meet the regression threshold of 0.5. However, the pooled data shows wilson95 [0.541, 0.696] meeting the threshold with failures in all 17 cells, but episode concentration (all failures on windows-latest) conflicts with the regression pattern requirement of cross-platform spread.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then resolved)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, meeting the regression criteria. The test failed universally at commit 9ce93727b7 then immediately resolved, consistent with a regression that was quickly fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after a4b5b644ac with shift -1.000, suggesting the issue was fixed immediately rather than being a persistent regression
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 cells_present (17/17), meeting both criteria for regression. The test failed universally at commit 25eb507474 then passed completely at the next commit, indicating a true regression that was quickly fixed.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (concentrated False, top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 7/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False blocks platform_specific despite top_cell_share 1.00 and top_os share 1.00; only failures 1 prevents concentration flag
+    reasoning:   The episode confidence interval [0.007, 0.189] spans both the flaky threshold (0.1 upper bound) and the unclear zone, with n=26 mostly inferred (25/26). The within_commit shift of +0.200 suggests environment_break, but failures are not "across cells" (only 1 of 5 cells failed), and the concentrated flag is False because failures=1 is below the threshold of 3.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     concentrated True (top_cell_share 1.00, top_os_share 1.00)
+    conflicting: Episode wilson95 upper bound 0.015 suggests flaky pattern, but concentration overrides pooled rate per rules.
+    reasoning:   All 14 failures across 3211 observations occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00 meeting the concentrated threshold. The rules explicitly state that concentration overrides the pooled interval, making this platform_specific despite the low pooled rate.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override pooled rate considerations.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). Concentration in one platform overrides the low pooled failure rate that would otherwise suggest flaky behavior.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.75  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     TEST LEVEL wilson95 [0.541, 0.696] with lower bound 0.541 >= 0.5
+    conflicting: EPISODE concentrated True and top_os windows-latest share 1.00 suggest platform_specific; largest_shift_between_commits shows failure rate 82/85 before -> 10/63 after 3865fc878b with shift -0.806 suggesting recovery rather than regression
+    reasoning:   The test-level pooled wilson95 lower bound of 0.541 meets the regression threshold of 0.5, and failures cover 17 of 17 cells present at test level. However, the episode shows concentration (top_os share 1.00 on windows-latest) and the largest shift shows recovery rather than onset, creating conflicting signals that lower confidence.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then success)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, indicating broad impact rather than platform-specific. The test failed universally at commit 9ce93727b7 then recovered completely at the next commit, consistent with a regression that was fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift shows failure rate 17/17 before -> 0/17 after at a4b5b644ac, suggesting this might be environment_break, but the episode is the most recent commit so this is a regression that was later fixed
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (top_cell_share 0.06, top_os_share 0.35, concentrated False), meeting the regression criteria. The subsequent commit fixed all failures, but the episode itself represents a clear regression.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: Episode wilson95 lower bound 0.701 also meets regression threshold (>= 0.5), but the within-commit temporal pattern and perfect shift point to environment_break.
+    reasoning:   At commit acf771d460, failures began across all 9 cells after a period of zero failures (0/9 -> 9/9, shift +1.000), indicating an environment break rather than a code regression. The failure is not concentrated (top_cell_share 0.11, top_os_share 0.44) and occurs uniformly across the matrix.
+
+===== run 8/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False despite top_cell_share 1.00 because failures 1 < 3; recovery True suggests flaky pattern
+    reasoning:   The episode confidence interval [0.007, 0.189] spans the flaky threshold (0.1), preventing a clear classification. While there is recovery and the upper bound is near flaky territory, n=26 with only 1 measured observation (25 inferred) and 1 failure provides insufficient evidence to confidently distinguish between flaky behavior and noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_cell_share 1.00
+    conflicting: Episode wilson95 upper bound 0.015 is below the flaky threshold 0.1, and recovery True suggests flaky behavior.
+    reasoning:   All 14 failures across the test level and all 3 failures in the episode are concentrated in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00, meeting the concentrated flag. Concentration overrides the pooled interval, making this platform_specific rather than flaky.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override this.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). The concentration on a single platform overrides the low pooled rate and recovery pattern that would otherwise suggest flaky behavior.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: Episode concentrated True and top_os windows-latest share 1.00 point toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows full spread, but the episode does not meet the regression threshold (0.133 < 0.5). The largest shift -0.806 shows a dramatic improvement rather than onset.
+    reasoning:   The episode wilson95 lower bound is 0.133, which does not meet the regression threshold of 0.5. However, the pooled data shows wilson95 [0.541, 0.696] meeting the threshold with failures in all 17 cells, but episode concentration (all failures on windows-latest) conflicts with the regression pattern requirement of cross-platform spread.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then success)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, meeting the regression criteria. The test failed universally at commit 9ce93727b7 then passed completely at the next commit, indicating a true regression that was subsequently fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after a4b5b644ac with shift -1.000, suggesting the issue was fixed immediately rather than being a persistent regression
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 cells_present (17/17), meeting both criteria for regression. The test failed universally at commit 25eb507474 then passed completely at the next commit, indicating a true regression that was quickly fixed.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (concentrated False, top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 9/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False despite top_cell_share 1.00 because failures 1 < 3; recovery True suggests flaky pattern
+    reasoning:   The episode confidence interval [0.007, 0.189] spans the flaky threshold (0.1), preventing a clear classification. While there is recovery and the upper bound is near flaky territory, n=26 with only 1 measured observation (25 inferred) and 1 failure provides insufficient evidence to confidently distinguish between flaky behavior and noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     concentrated True (top_cell_share 1.00, top_os_share 1.00)
+    conflicting: Episode wilson95 upper bound 0.015 suggests flaky pattern, but concentration overrides pooled rate per rules.
+    reasoning:   All 14 failures across 3211 observations occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and top_os_share 1.00 meeting the concentrated threshold. The rules explicitly state that concentration overrides the pooled interval, making this platform_specific despite the low pooled rate.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override this.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold (top_os_share >= 0.8). The concentration on a single platform overrides the low pooled rate and recovery pattern that would otherwise suggest flaky behavior.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: The episode is concentrated (top_os windows-latest share 1.00) pointing toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows broad impact. The largest shift -0.806 shows improvement rather than degradation.
+    reasoning:   The episode wilson95 lower bound 0.133 does not meet the regression threshold of 0.5, ruling out regression by definition. However, the episode concentrated flag is True with top_os windows-latest share 1.00, meeting the platform_specific criteria despite the pooled data showing failures across all 17 cells earlier in the window.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then success)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 cells_present with concentrated False, meeting the regression criteria. The test failed universally at commit 9ce93727b7 then passed completely at the next commit, indicating a true regression that was subsequently fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after a4b5b644ac with shift -1.000, suggesting the issue was fixed immediately rather than being a persistent regression
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 cells_present (17/17), meeting both criteria for regression. The test failed universally at commit 25eb507474 then passed completely at the next commit, indicating a true regression that was quickly fixed.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== run 10/10 =====
+fixture                                                 expected           baseline     classifier         conf  agree
+ambiguous_test_handle_null_partitions_2                 unclear            unclear      unclear            0.40  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 [0.007, 0.189]
+    conflicting: within_commit_over_time shift +0.200 meets onset threshold; concentrated False despite top_cell_share 1.00 because failures 1 < 3; recovery True suggests flaky pattern
+    reasoning:   The episode confidence interval [0.007, 0.189] spans the flaky threshold (0.1), preventing a clear classification. While there is recovery and the upper bound is near flaky territory, n=26 with only 1 measured observation (25 inferred) and 1 failure provides insufficient evidence to confidently distinguish between flaky behavior and noise.
+conflict_platform_cell_test_restarting_during_transfer  platform_specific  flaky        platform_specific  0.95  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_cell_share 1.00
+    conflicting: Episode wilson95 upper bound 0.015 is below the flaky threshold 0.1, and recovery True suggests flaky behavior.
+    reasoning:   All 14 failures across the pooled data and all 3 failures in the episode occur in a single cell (ubuntu-latest-py310-test-noqueue-notci1), with top_cell_share 1.00 and concentrated True. The concentration rule overrides the pooled rate, making this platform_specific despite the low failure rate and recovery pattern.
+conflict_platform_os_test_gc_diagnosis_cpu_time         platform_specific  flaky        platform_specific  0.92  DIFF   [baseline WRONG] [classifier OK ]
+    primary:     top_os windows-latest share 1.00
+    conflicting: The episode wilson95 upper bound [0.003, 0.018] meets the flaky threshold of 0.1, and recovery True suggests flaky behavior. However, the concentrated True flag and top_os_share 1.00 override the pooled interval per the rules.
+    reasoning:   All 22 failures across the test level and all 4 failures in the episode occur exclusively on windows-latest (top_os_share 1.00), meeting the concentrated threshold. Concentration in one platform overrides the pooled rate analysis, making this platform_specific rather than flaky.
+conflict_platform_pr_test_bad_executable                platform_specific  unclear      regression         0.40  DIFF   [baseline WRONG] [classifier WRONG]
+    primary:     episode wilson95 [0.133, 0.531] lower bound 0.133
+    conflicting: Episode concentrated True and top_os windows-latest share 1.00 point toward platform_specific. The pooled wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17 shows full spread, but the episode fails the regression threshold (0.133 < 0.5) and shows concentration.
+    reasoning:   The episode wilson95 lower bound is 0.133, which does not meet the regression threshold of 0.5. However, the episode shows concentrated True with all 5 failures on windows-latest (top_os share 1.00), pointing toward platform_specific, though the pooled data shows widespread failure across all 17 cells and a high rate that would suggest regression if episode data supported it.
+flake_test_shutdowns_cleanly                            ['flaky', 'chronic'] flaky        chronic            0.85  DIFF   [baseline OK ] [classifier OK ]
+    primary:     spread_recovery_commits 9
+    conflicting: none
+    reasoning:   The test exhibits a flaky pattern with episode wilson95 upper bound 0.038 meeting the flaky threshold (≤0.1), failures spread across 5 of 12 cells (concentrated False), and recovery True. The spread_recovery_commits value of 9 exceeds the chronic threshold of 3, elevating this from flaky to chronic.
+regression_test_get_client                              regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift_between_commits shows failure rate 17/17 before -> 0/17 after 696800cc91 with shift -1.000, which could suggest environment_break, but the shift is in the wrong direction (failures came first, then resolved)
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (concentrated False), meeting the regression criteria. The test failed universally at commit 9ce93727b7 then immediately resolved, indicating a true regression that was quickly fixed.
+regression_test_server_listen                           regression         regression   regression         0.95  same   [baseline OK ] [classifier OK ]
+    primary:     episode wilson95 lower bound 0.816
+    conflicting: largest_shift shows failure rate 17/17 before -> 0/17 after at a4b5b644ac, suggesting this might be environment_break, but the episode is the most recent commit so this is a regression that was later fixed
+    reasoning:   The episode wilson95 lower bound of 0.816 exceeds the regression threshold of 0.5, and failures occurred in all 17 of 17 present cells (top_cell_share 0.06, top_os_share 0.35, concentrated False), meeting the regression criteria. The subsequent commit fixed all failures, but the episode itself represents a clear regression.
+trap_cells_present_test_signal_handling_scheduler       regression         regression   environment_break  0.95  DIFF   [baseline OK ] [classifier WRONG]
+    primary:     largest_shift_between_commits: failure rate 0/9 before -> 9/9 after acf771d460 (2026-06-19), shift +1.000
+    conflicting: none
+    reasoning:   At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9), with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (concentrated False, top_cell_share 0.11, top_os_share 0.44), indicating an environment break rather than platform-specific issue.
+
+===== scores =====
+primary   cases 4  baseline 40/40  classifier 40/40
+conflict  cases 4  baseline 10/40  classifier 20/40
+invented numbers across 10 run(s): 0
