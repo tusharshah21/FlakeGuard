@@ -279,6 +279,20 @@ the Windows concentration in the first three sentences, and the correlation step
 (`probe-results/artifacts/conflict_platform_pr_test_bad_executable.md`) - the conflict is on the surface, not
 behind the verdict.
 
+### Why orchestration is deterministic
+
+FlakeGuard uses Strands agents for every step that needs judgement - classification, correlation, drafting - each
+with a narrow contract and a Pydantic structured output. It does not use an agent to decide which of those steps
+runs. The reason is measured, not stylistic: the fragility experiment above showed that one sentence added to one
+verdict's definition moved an unrelated verdict across the action threshold with self-contradictory reasoning.
+Delegating control flow to a prompt would put that same fragility in charge of whether a correlation runs, what it
+is handed, and whether an artifact is written. So the reasoning is agentic and the sequencing is code: tools take
+only a test id, the pipeline order is a Python function, and the action gate is a Python function.
+
+Planned for Phase 6, as an addition rather than a replacement: an interactive orchestrator agent over the same
+tools, for a human asking "why is this test flaky?" - deterministic where correctness matters, agentic where
+exploration matters.
+
 "How to override" is not decoration: an agent that touches a repository must say how to tell it it was wrong. Two
 mechanisms are named - `[overrides] ignore_tests` in config, or the `flakeguard-override` label - and Phase 5
 implements both.
