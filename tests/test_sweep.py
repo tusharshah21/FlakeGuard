@@ -151,3 +151,23 @@ def test_superseded_label_lets_the_agent_redo_a_closed_artifact(world):
     remote.issues[0]["labels"].add("flakeguard-superseded")
     ts = run("2026-09-14", [PLATFORM])
     assert ts[0].outcome.kind == "issue" and len(remote.issues) == 2
+
+
+def test_action_cap_defers_the_rest_to_the_next_sweep(world):
+    run, remote, store, _ = world
+    orch.load  # noqa: B018  (cfg copy lives inside the fixture; set the cap on it)
+    cfg = orch.rt().cfg if orch._rt else None
+    ts = run("2026-09-13", [FLAKE, PLATFORM])
+    assert [t.outcome.kind for t in ts] == ["quarantine_pr", "issue"]
+    # a second world with cap 1: the second actionable case is deferred, not silently dropped
+    orch.rt().cfg.triage.max_actions_per_sweep = 1
+    store2 = Storage(":memory:")
+    orch.configure(orch.rt().cfg, FIXTURES, remote=MemoryRemote(branches={"main": "0" * 40, "scratch": "1" * 40}), store=store2,
+                   as_of="2026-09-13T23:59:59Z", log=lambda *_: None)
+    ts = orch.sweep([FLAKE, PLATFORM], log=lambda *_: None)
+    assert [t.outcome.kind for t in ts] == ["quarantine_pr", "deferred"]
+    assert store2.decisions()[-1]["action"] == "deferred"
+    # next day the deferred one goes through
+    orch.configure(orch.rt().cfg, FIXTURES, remote=orch.rt().actions.remote, store=store2, as_of="2026-09-14T23:59:59Z", log=lambda *_: None)
+    ts = orch.sweep([PLATFORM], log=lambda *_: None)
+    assert ts[0].outcome.kind == "issue"

@@ -379,6 +379,19 @@ Things that behaved differently live than against the in-memory double, all reco
 
 **Issue identity is title-based - an operational caveat.** Cross-day idempotency ("comment on the existing issue, never open a duplicate") works by exact title match, because a dated title would defeat it. Issue titles therefore carry a date-free `[REPLAY]` prefix, and **editing a FlakeGuard issue's title by hand will cause the next sweep to open a new one.** We renamed #1 and #3 live to add the prefix and then verified the matcher resolves them: a next-day sweep commented on renamed #3 rather than opening a second queue, and the `closed_by_human` check matched renamed #1.
 
+## Running unattended (Phase 6)
+
+`.github/workflows/sweep.yml` runs on a cron at 07:30 and 19:30 UTC - after each of dask/distributed's scheduled
+test runs has finished - and on manual dispatch. Each run restores the SQLite store and the raw artifact cache from
+`actions/cache`, imports the committed decision ledger (`state/decisions.json`, existing rows win), ingests any new
+CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Two limits
+live in code, not in the prompt: only tests with a failure in the last 7 days are triaged, and at most
+`max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable cases are recorded as
+`deferred` and picked up next time. Writes use a personal access token scoped to public repositories; the workflow's
+own token stays read-only. This is what "runs autonomously in the background and surfaces only when there is a
+decision" means here: the schedule is GitHub's, the gate is Python's, and the model is consulted only for tests the
+gate has not already disposed of.
+
 ## The denominator under every interval is validated
 
 Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster

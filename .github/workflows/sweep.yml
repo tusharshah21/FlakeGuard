@@ -1,0 +1,79 @@
+name: FlakeGuard sweep
+
+# Runs unattended after each of dask/distributed's scheduled test runs (06:00 and 18:00 UTC) has had time to finish.
+# Ingests new CI results into the cached store, then triages tests that failed recently. Actions go to this repo's
+# `scratch` branch only (see README, "Reading this repo's Issues and Pull Requests").
+on:
+  schedule:
+    - cron: "30 7,19 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Override dry_run (true/false); empty keeps flakeguard.toml"
+        required: false
+        default: ""
+
+permissions:
+  contents: read   # writes use FLAKEGUARD_GH_TOKEN, a PAT scoped to public repos, so the workflow token stays read-only
+
+concurrency:
+  group: flakeguard-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ secrets.FLAKEGUARD_GH_TOKEN }}
+      AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      # State that must survive between runs: the SQLite store (observations + the decision ledger the gate reads)
+      # and the raw artifact cache. Immutable keys per run; restore-keys picks up the newest previous one.
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            flakeguard.db
+            .cache/artifacts
+          key: flakeguard-state-${{ github.run_id }}
+          restore-keys: flakeguard-state-
+
+      - name: Optional dry_run override
+        if: ${{ github.event.inputs.dry_run != '' }}
+        run: sed -i "s/^dry_run = .*/dry_run = ${{ github.event.inputs.dry_run }}/" flakeguard.toml
+
+      - name: Inherit the committed decision ledger (existing rows win)
+        run: uv run python -m flakeguard ledger import state/decisions.json
+
+      - name: Ingest new CI results
+        run: uv run python -m flakeguard ingest
+
+      - name: Sweep recently failing tests
+        run: uv run python -m flakeguard sweep --recent | tee sweep.log
+
+      - name: Decision ledger for this run
+        run: uv run python -m flakeguard decisions "$(date -u +%F)" | tee -a sweep.log
+
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            flakeguard.db
+            .cache/artifacts
+          key: flakeguard-state-${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep-log-${{ github.run_id }}
+          path: sweep.log
+          retention-days: 30

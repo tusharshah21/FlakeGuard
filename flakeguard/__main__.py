@@ -1,6 +1,6 @@
 """uv run python -m flakeguard ingest | health <fixture.json | test_id> | triage <fixture.json | test_id>
-                          | sweep [--fixtures a.json b.json] [--tests id ...] [--all-failing] [--as-of ISO8601]
-                          | decisions [YYYY-MM-DD]"""
+                          | sweep [--fixtures a.json b.json] [--tests id ...] [--all-failing | --recent] [--as-of ISO8601]
+                          | decisions [YYYY-MM-DD] | ledger export|import <file>"""
 import json
 import sys
 from pathlib import Path
@@ -63,7 +63,22 @@ elif cmd == "sweep":
     tests = opt("--tests") or list(r.fixtures) if fixtures else opt("--tests")
     if "--all-failing" in args:
         tests = r.store.failing_tests()
+    if "--recent" in args:
+        from datetime import datetime, timedelta, timezone
+        since = ((datetime.fromisoformat(as_of.replace("Z", "+00:00")) if as_of else datetime.now(timezone.utc))
+                 - timedelta(days=cfg.triage.recent_failure_days)).strftime("%Y-%m-%d")
+        tests = r.store.recently_failing_tests(since)
     sweep(tests)
+elif cmd == "ledger":
+    # ledger export <file> | ledger import <file>  - the decision ledger is the state the gate reads; CI inherits it from here
+    from .storage import Storage
+    store = Storage(cfg.ingest.db_path)
+    if sys.argv[2] == "export":
+        rows = [d for d in store.decisions() if not d["dry_run"]]
+        Path(sys.argv[3]).write_text(json.dumps(rows, indent=1), encoding="utf-8")
+        print(f"exported {len(rows)} live decisions")
+    else:
+        print(f"imported {store.import_decisions(json.loads(Path(sys.argv[3]).read_text(encoding='utf-8')))} new decisions")
 elif cmd == "decisions":
     from .storage import Storage
     for d in Storage(cfg.ingest.db_path).decisions(sys.argv[2] if len(sys.argv) > 2 else None):

@@ -41,6 +41,8 @@ class Triage(BaseModel):
     action_threshold: float
     unquarantine_after_passes: int
     dry_run: bool
+    recent_failure_days: int
+    max_actions_per_sweep: int
 
 
 class Overrides(BaseModel):

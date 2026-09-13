@@ -156,9 +156,17 @@ def review_note(test_id: str, evidence: str, decision: Decision) -> str:
                       "## Evidence", "```", evidence, "```"])
 
 
-def act(t: Triage) -> Outcome:
+def act(t: Triage, budget: list[int] | None = None) -> Outcome:
+    """budget is a one-element list [remaining new artifacts this sweep]; decremented in place. ponytail: a list as a
+    mutable counter; make it a Sweep object if the sweep grows more state."""
     r = rt()
     a = t.decision.action
+    if a in ("issue", "quarantine_pr") and budget is not None and budget[0] <= 0:
+        out = Outcome("deferred", None, f"max_actions_per_sweep = {r.cfg.triage.max_actions_per_sweep} reached; deferred to the next sweep")
+        r.store.record_decision(t.test_id, r.now, t.classification.verdict, t.classification.confidence, "deferred",
+                                f"{t.decision.reason} -> {out.detail}", None, r.actions.dry)
+        t.outcome = out
+        return out
     if a == "issue":
         out = r.actions.open_issue(t.test_id, t.artifact)
     elif a == "quarantine_pr":
@@ -167,6 +175,8 @@ def act(t: Triage) -> Outcome:
         out = r.actions.review(t.test_id, r.today, t.artifact)
     else:
         out = Outcome("noop", None, t.decision.reason)
+    if budget is not None and out.kind in ("issue", "quarantine_pr"):
+        budget[0] -= 1
     recorded = out.kind if out.kind == "closed_by_human" else a   # the ledger records what happened, not what was intended
     r.store.record_decision(t.test_id, r.now, t.classification and t.classification.verdict,
                             t.classification and t.classification.confidence, recorded, f"{t.decision.reason} -> {out.detail}", out.url, r.actions.dry)
@@ -209,9 +219,10 @@ def sweep(test_ids: list[str], log=print) -> list[Triage]:
     log(f"sweep {r.today}{' (replay as of ' + r.as_of + ')' if r.as_of else ''}: {len(test_ids)} tests, "
         f"dry_run={r.actions.dry}, action target={r.cfg.target.scratch_repo or '<unset>'}")
     results = []
+    budget = [r.cfg.triage.max_actions_per_sweep]
     for test_id in test_ids:
         t = triage(test_id)
-        out = act(t)
+        out = act(t, budget)
         v = f"{t.classification.verdict}@{t.classification.confidence:.2f}" if t.classification else "not classified"
         log(f"  {test_id.split('::')[-1]:50s} {v:22s} gate={t.decision.action:14s} -> {out.kind}: {out.detail}")
         if t.invented_numbers:

@@ -117,11 +117,24 @@ class Storage:
     def quarantined_tests(self) -> list[tuple[str, str]]:
         return [(t, q) for (t,) in self.db.execute("SELECT DISTINCT test_id FROM triage_decisions") if (q := self.quarantined_at(t))]
 
+    def import_decisions(self, rows: list[dict]) -> int:
+        """Seed the ledger from an export; existing rows win (INSERT OR IGNORE). Returns rows added."""
+        before = self.count("triage_decisions")
+        self.db.executemany("INSERT OR IGNORE INTO triage_decisions VALUES (?,?,?,?,?,?,?,?,?)",
+                            [(r["test_id"], r["decided_on"], r["decided_at"], r["verdict"], r["confidence"], r["action"], r["reason"], r["url"], r["dry_run"]) for r in rows])
+        self.db.commit()
+        return self.count("triage_decisions") - before
+
     def decisions(self, decided_on: str | None = None) -> list[dict]:
         q, args = "SELECT * FROM triage_decisions", ()
         if decided_on:
             q, args = q + " WHERE decided_on = ?", (decided_on,)
         return [dict(r) for r in self.db.execute(q + " ORDER BY decided_at", args)]
+
+    def recently_failing_tests(self, since: str) -> list[str]:
+        """Tests with a measured failure at or after `since` (ISO date), most failures first."""
+        return [r[0] for r in self.db.execute("SELECT test_id, COUNT(*) c FROM observations WHERE outcome = 'fail' AND started_at >= ? "
+                                              "GROUP BY test_id ORDER BY c DESC", (since,))]
 
     def failing_tests(self) -> list[str]:
         return [r[0] for r in self.db.execute("SELECT DISTINCT test_id FROM observations WHERE outcome = 'fail'")]
