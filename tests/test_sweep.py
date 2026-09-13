@@ -105,7 +105,10 @@ def test_unquarantine_reverses_a_prior_quarantine(world):
               for i in range(25) for c in cells]
     run("2026-10-26", [], extra_rows={FLAKE: future})   # a later sweep with nothing to triage still runs the un-quarantine pass
     kinds = [p["title"] for p in remote.prs]
-    assert kinds == [f"[FlakeGuard] quarantine {FLAKE}", f"[FlakeGuard] un-quarantine {FLAKE}"]
+    # every run in this test uses a declared clock, so every PR title carries the replay label
+    assert kinds == [f"[REPLAY as of 2026-09-13] [FlakeGuard] quarantine {FLAKE}",
+                     f"[REPLAY 2026-09-13 -> 2026-10-26] [FlakeGuard] un-quarantine {FLAKE}"]
+    assert all(p["body"].startswith("[REPLAY") and "dated replay" in p["body"] for p in remote.prs)
     assert FLAKE not in remote.files[(remote.prs[1]["head"], QUARANTINE_FILE)]
     assert store.quarantined_at(FLAKE) is None
 

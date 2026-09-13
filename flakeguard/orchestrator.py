@@ -63,7 +63,7 @@ def configure(cfg: Config | None = None, fixture_paths: list[str] = (), remote: 
             raise SystemExit("dry_run is off but scratch_repo is unset or equals the analysis target; refusing to act")
         remote = GitHubRemote(cfg.target.scratch_repo, os.environ["GITHUB_TOKEN"])
     _rt = Runtime(cfg, store or Storage(cfg.ingest.db_path), GitHub(cfg.target.repo, cfg.ingest.cache_dir),
-                  Actions(cfg, remote, log), fixtures, as_of)
+                  Actions(cfg, remote, log, replay=as_of[:10] if as_of else None), fixtures, as_of)
     return _rt
 
 
@@ -187,7 +187,8 @@ def unquarantine_pass() -> list[tuple[str, int, Outcome]]:
             "## How to override",
             "If you want the test to stay quarantined, close this PR and apply the label `flakeguard-override`.",
         ])
-        out = r.actions.open_unquarantine_pr(test_id, body)
+        span = f"{quarantined_at[:10]} -> {r.today}" if r.as_of else None
+        out = r.actions.open_unquarantine_pr(test_id, body, span)
         r.store.record_decision(test_id, r.now, None, None, "unquarantine_pr", f"{clean} clean runs since quarantine", out.url, r.actions.dry)
         results.append((test_id, clean, out))
     return results

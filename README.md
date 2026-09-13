@@ -324,6 +324,17 @@ repository change the gate did not make.
 - `review` - one shared "Review queue" issue, one comment per test per day, no code touched.
 - decisions are written back to `triage_decisions` in storage; the gate reads them.
 
+### Why quarantine is xfail, not skip
+
+The obvious quarantine marker is `pytest.mark.skip`. It would make the agent a one-way ratchet. A skipped test
+produces no observations - no pass, no fail, nothing in the JUnit file - so FlakeGuard could never gather the
+evidence that the test has recovered, and nothing would ever be un-quarantined except by a human remembering to.
+`pytest.mark.xfail(strict=False)` keeps the test running and reporting while preventing it from failing the suite:
+a pass is recorded as a pass, a failure is recorded by pytest as `<skipped type="pytest.xfail">`, which the ingest
+reads as a failure for quarantined tests only. The data keeps flowing, the streak can be measured, and reversal
+becomes possible at all. The quarantine list lives in one file and the hook is twelve lines, so a maintainer can
+read the whole mechanism in under a minute.
+
 **The un-quarantine loop.** Every sweep checks each quarantined test: if it has passed in every cell for
 `unquarantine_after_passes` consecutive runs since quarantine, FlakeGuard opens a PR removing the line and records
 the reversal. A failure resets the streak. It never reverses a quarantine made the same day. This is what keeps the

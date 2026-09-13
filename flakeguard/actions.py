@@ -158,10 +158,25 @@ class Outcome:
     detail: str
 
 
+REPLAY_NOTE = ("**This is a dated replay against historical data, not a live claim about the repository's current state.** "
+               "FlakeGuard was run with a declared clock (`--as-of`), seeing only observations up to that instant. The runs and "
+               "outcomes are real; the date was chosen by the operators knowing what followed, because a recovery window of "
+               "twenty scheduled runs cannot otherwise be demonstrated inside a hackathon.")
+
+
 class Actions:
-    def __init__(self, cfg: Config, remote: Remote | None, log=print):
-        self.cfg, self.remote, self.log = cfg, remote, log
+    def __init__(self, cfg: Config, remote: Remote | None, log=print, replay: str | None = None):
+        """`replay` is the as-of date when running with a declared clock; it is stamped on every PR title and body."""
+        self.cfg, self.remote, self.log, self.replay = cfg, remote, log, replay
         self.dry = cfg.triage.dry_run or remote is None
+
+    def _stamp(self, title: str, body: str, span: str | None = None) -> tuple[str, str]:
+        if not self.replay:
+            return title, body
+        label = f"[REPLAY {span or 'as of ' + self.replay}]"
+        return f"{label} {title}", f"{label} {REPLAY_NOTE}
+
+{body}"
 
     def _dry(self, what) -> Outcome:
         self.log(f"[dry-run] would {what} in {self.cfg.target.scratch_repo or '<scratch_repo unset>'}")
@@ -180,14 +195,14 @@ class Actions:
         if existing:
             url = self.remote.comment(existing["number"], body)
             return Outcome("issue_comment", url, f"commented on existing issue #{existing['number']}")
-        i = self.remote.create_issue(title, body)
+        i = self.remote.create_issue(title, self._stamp("", body)[1])
         return Outcome("issue", i["html_url"], f"opened issue #{i['number']}")
 
-    def _quarantine_change(self, test_id: str, body: str, add: bool) -> Outcome:
+    def _quarantine_change(self, test_id: str, body: str, add: bool, span: str | None = None) -> Outcome:
         kind = "quarantine_pr" if add else "unquarantine_pr"
         verb = "quarantine" if add else "un-quarantine"
         branch = f"flakeguard/{verb}/{slug(test_id)}"
-        title = f"[FlakeGuard] {verb} {test_id}"
+        title, body = self._stamp(f"[FlakeGuard] {verb} {test_id}", body, span)
         if self.dry:
             return self._dry(f"open PR {title!r} on branch {branch} editing {QUARANTINE_FILE}")
         existing = next((p for p in self.remote.open_prs() if p["head"] == branch), None)
@@ -210,8 +225,8 @@ class Actions:
     def open_quarantine_pr(self, test_id: str, body: str) -> Outcome:
         return self._quarantine_change(test_id, body, add=True)
 
-    def open_unquarantine_pr(self, test_id: str, body: str) -> Outcome:
-        return self._quarantine_change(test_id, body, add=False)
+    def open_unquarantine_pr(self, test_id: str, body: str, span: str | None = None) -> Outcome:
+        return self._quarantine_change(test_id, body, add=False, span=span)
 
     def review(self, test_id: str, today: str, body: str) -> Outcome:
         """One shared issue; one comment per (test, day). Mutates no code."""
