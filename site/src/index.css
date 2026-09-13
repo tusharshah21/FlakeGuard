@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* Design tokens. Light is the base; dark is redefined in three places so it resolves whether the viewer has
+   chosen a theme explicitly or left the OS to decide. */
+@theme {
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+
+  --color-paper: #fcfcfb;
+  --color-ink: #13171d;
+  --color-muted: #5c6774;
+  --color-line: #e2e4e1;
+  --color-panel: #f4f5f2;
+  --color-pass: #2f8f5b;
+  --color-fail: #ce3a57;
+  --color-accent: #2a4fc4;
+  --color-accent-ink: #ffffff;
+}
+
+@layer theme {
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --color-paper: #0c0f14;
+      --color-ink: #ecf0f4;
+      --color-muted: #94a2b2;
+      --color-line: #222a35;
+      --color-panel: #141a22;
+      --color-pass: #57b583;
+      --color-fail: #e2647e;
+      --color-accent: #7c9cf5;
+      --color-accent-ink: #0c0f14;
+    }
+  }
+  :root[data-theme="dark"] {
+    --color-paper: #0c0f14;
+    --color-ink: #ecf0f4;
+    --color-muted: #94a2b2;
+    --color-line: #222a35;
+    --color-panel: #141a22;
+    --color-pass: #57b583;
+    --color-fail: #e2647e;
+    --color-accent: #7c9cf5;
+    --color-accent-ink: #0c0f14;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The two failing cells breathe, so the eye lands on them before reading a word. */
+@media (prefers-reduced-motion: no-preference) {
+  .cell-fail {
+    animation: flag 2.6s ease-in-out infinite;
+  }
+}
+@keyframes flag {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-fail) 22%, transparent);
+  }
+}

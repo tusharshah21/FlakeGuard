@@ -12,6 +12,8 @@ quarantine. When the evidence is weak it does nothing and says why.
 and pinned into the prompt as ground truth. Scheduling, idempotency, rate limiting and the decision to write are
 code. Most of this document is the evidence for that claim.
 
+The landing page in [`site/`](site/) explains the idea in one screen.
+
 Demonstrated against [`dask/distributed`](https://github.com/dask/distributed) — real, active, public, 89 days of
 messy CI history. FlakeGuard never writes to it; artifacts go to this repository's `scratch` branch instead.
 
