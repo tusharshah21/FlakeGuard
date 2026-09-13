@@ -16,7 +16,7 @@ from .stats import TestHealth
 
 # What each gate action means for the repository. The gate decides; this text only describes its decision.
 ACTION_TEXT = {
-    "issue": "FlakeGuard will open an issue (or comment on the existing one) with this evidence. It will not quarantine: a test that fails deterministically is doing its job.",
+    "issue": "FlakeGuard will open an issue (or comment on the existing one) with this evidence. It will not quarantine: a failure that is deterministic, or confined to one configuration, is information the suite should keep surfacing.",
     "quarantine_pr": "FlakeGuard will open a pull request adding this test to `.flakeguard/quarantine.txt`, which marks it xfail(strict=False): it keeps running and reporting but cannot fail the suite. FlakeGuard never merges. The test is un-quarantined automatically after sustained passes.",
     "review": "FlakeGuard will NOT change the repository. This case goes to the review queue for a human.",
     "none": "FlakeGuard will NOT change the repository.",
@@ -25,7 +25,7 @@ ACTION_TEXT = {
 OVERRIDE = """FlakeGuard acted on statistics, not on knowledge of this code. If this is wrong:
 - add the test id to `[overrides] ignore_tests` in `flakeguard.toml` to stop all future actions on it, or
 - apply the label `flakeguard-override` to this issue or PR; the next sweep records the override and stops acting on this test.
-Closing this issue or PR without either has no effect - the next sweep will recreate it once, then stop and record the disagreement."""
+Closing this issue or PR is also respected: FlakeGuard does not recreate what a human closed; it records the disagreement and moves on."""
 
 
 class Draft(BaseModel):

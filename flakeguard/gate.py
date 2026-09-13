@@ -44,8 +44,9 @@ def decide(h: TestHealth, cls: Classification | None, cfg: Config, *, last_decis
         return Decision("review", "Verdict is unclear; routed to review, nothing touched.")
     if quarantined and action == "quarantine_pr":
         return Decision("none", "Already quarantined and still flaky; nothing further to do until it recovers.")
+    doing = {"issue": "open an issue", "quarantine_pr": "open a quarantine PR"}[action]
     return Decision(action, f"Verdict {cls.verdict} at confidence {cls.confidence:.2f} clears action_threshold = {t.action_threshold} "
-                            f"with {h.runs} runs in the window; FlakeGuard will {action.replace('_', ' ')}.")
+                            f"with {h.runs} runs in the window; FlakeGuard will {doing}.")
 
 
 def clean_runs_since(rows: list[dict], since: str) -> int:

@@ -127,3 +127,15 @@ def test_no_reversal_on_the_day_of_quarantine(world):
     future = [{**rows[0], "run_id": 900000 + i, "started_at": f"2026-09-13T{6 + i // 4:02d}:{(i % 4) * 15:02d}:00Z", "outcome": "pass"} for i in range(25)]
     run("2026-09-13", [], extra_rows={FLAKE: future})
     assert len(remote.prs) == 1
+
+
+def test_human_closed_artifacts_are_not_recreated(world):
+    run, remote, store, _ = world
+    run("2026-09-13", [FLAKE, PLATFORM])
+    for x in remote.issues + remote.prs:
+        if x["title"] != "[FlakeGuard] Review queue":
+            x["state"] = "closed"                        # a maintainer closes both
+    ts = run("2026-09-14", [PLATFORM])
+    assert ts[0].outcome.kind == "closed_by_human" and len(remote.issues) == 2
+    # the flake is still recorded as quarantined in storage (the PR existed); the loop, not a new PR, decides its future
+    assert len(remote.prs) == 1

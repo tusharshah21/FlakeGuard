@@ -49,6 +49,7 @@ class Remote:
     def create_issue(self, title: str, body: str) -> dict: ...
     def comment(self, number: int, body: str) -> str: ...
     def labels_anywhere(self, title: str) -> set[str]: ...  # labels on any open or closed issue/PR with this title
+    def closed_titled(self, title: str) -> bool: ...        # a closed issue or PR with exactly this title exists
     def default_branch(self) -> str: ...
     def head_sha(self, branch: str) -> str: ...
     def create_branch(self, name: str, from_sha: str) -> None: ...
@@ -86,6 +87,9 @@ class MemoryRemote(Remote):
     def labels_anywhere(self, title):
         return set().union(*(x["labels"] for x in self.issues + self.prs if x["title"] == title), set())
 
+    def closed_titled(self, title):
+        return any(x["title"] == title and x["state"] == "closed" for x in self.issues + self.prs)
+
     def default_branch(self): return "main"
     def head_sha(self, branch): return self.branches[branch]
 
@@ -122,6 +126,9 @@ class GitHubRemote(Remote):
 
     def labels_anywhere(self, title):
         return set().union(*(self._d(i)["labels"] for i in self.repo.get_issues(state="all") if i.title == title), set())
+
+    def closed_titled(self, title):
+        return any(i.title == title for i in self.repo.get_issues(state="closed"))  # PRs are issues too on this endpoint
 
     def default_branch(self): return self.repo.default_branch
     def head_sha(self, branch): return self.repo.get_branch(branch).commit.sha
@@ -193,6 +200,8 @@ class Actions:
         if existing:
             url = self.remote.comment(existing["number"], body)
             return Outcome("issue_comment", url, f"commented on existing issue #{existing['number']}")
+        if self.remote.closed_titled(title):
+            return Outcome("closed_by_human", None, "a human closed the previous issue; not recreated, disagreement recorded")
         i = self.remote.create_issue(title, self._stamp("", body)[1])
         return Outcome("issue", i["html_url"], f"opened issue #{i['number']}")
 
@@ -206,6 +215,8 @@ class Actions:
         existing = next((p for p in self.remote.open_prs() if p["head"] == branch), None)
         if existing:
             return Outcome("noop", existing["html_url"], f"PR #{existing['number']} already open for this branch")
+        if self.remote.closed_titled(title):
+            return Outcome("closed_by_human", None, "a human closed the previous PR; not recreated, disagreement recorded")
         base = self.remote.default_branch()
         self.remote.create_branch(branch, self.remote.head_sha(base))
         current = self.remote.get_file(QUARANTINE_FILE, base) or "# Tests quarantined by FlakeGuard. One id per line. Remove a line to un-quarantine.\n"
