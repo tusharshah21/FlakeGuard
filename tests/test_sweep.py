@@ -54,7 +54,7 @@ def world(monkeypatch):
 def test_ambiguous_routes_to_review_and_touches_nothing(world):
     run, remote, store, _ = world
     run("2026-09-13", [AMBIG])
-    assert remote.prs == [] and len(remote.issues) == 1 and remote.issues[0]["title"] == "[FlakeGuard] Review queue"
+    assert remote.prs == [] and len(remote.issues) == 1 and remote.issues[0]["title"] == "[REPLAY] [FlakeGuard] Review queue"
     assert store.decisions()[-1]["action"] == "review"
     assert not any(k[1] == QUARANTINE_FILE for k in remote.files)
 
@@ -136,7 +136,7 @@ def test_human_closed_artifacts_are_not_recreated(world):
     run, remote, store, _ = world
     run("2026-09-13", [FLAKE, PLATFORM])
     for x in remote.issues + remote.prs:
-        if x["title"] != "[FlakeGuard] Review queue":
+        if x["title"] != "[REPLAY] [FlakeGuard] Review queue":
             x["state"] = "closed"                        # a maintainer closes both
     ts = run("2026-09-14", [PLATFORM])
     assert ts[0].outcome.kind == "closed_by_human" and len(remote.issues) == 1   # nothing recreated

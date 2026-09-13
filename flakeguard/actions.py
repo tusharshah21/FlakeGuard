@@ -8,8 +8,9 @@ from dataclasses import dataclass, field
 
 from .config import Config
 
-TITLE = "[FlakeGuard] {test_id}"
-REVIEW_TITLE = "[FlakeGuard] Review queue"
+# Issue titles carry a date-free [REPLAY] prefix: idempotency matches on exact title across days.
+TITLE = "[REPLAY] [FlakeGuard] {test_id}"
+REVIEW_TITLE = "[REPLAY] [FlakeGuard] Review queue"
 OVERRIDE_LABEL = "flakeguard-override"
 REPLAY_LABEL = "flakeguard-replay"
 PROTECTED_BASES = {"main", "master", ""}

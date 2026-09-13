@@ -1,42 +1,5 @@
-Traceback (most recent call last):
-  File "<frozen runpy>", line 198, in _run_module_as_main
-  File "<frozen runpy>", line 88, in _run_code
-  File "C:\open\flakeguard\flakeguard\__main__.py", line 62, in <module>
-    r = configure(cfg, fixtures, as_of=as_of)
-  File "C:\open\flakeguard\flakeguard\orchestrator.py", line 64, in configure
-    remote = GitHubRemote(cfg.target.scratch_repo, os.environ["GITHUB_TOKEN"])
-  File "C:\open\flakeguard\flakeguard\actions.py", line 115, in __init__
-    self.repo = Github(token).get_repo(repo_full_name)
-                ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\MainClass.py", line 518, in get_repo
-    return github.Repository.Repository(self.__requester.withLazy(lazy), url=url)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\GithubObject.py", line 633, in __init__
-    self.complete()
-    ~~~~~~~~~~~~~^^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\GithubObject.py", line 678, in complete
-    self._completeIfNeeded()
-    ~~~~~~~~~~~~~~~~~~~~~~^^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\GithubObject.py", line 687, in _completeIfNeeded
-    self._complete()
-    ~~~~~~~~~~~~~~^^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\GithubObject.py", line 692, in _complete
-    headers, data = self._requester.requestJsonAndCheck(
-                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
-        "GET", self._url.value, parameters=parameters, headers=self.__completeHeaders
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\Requester.py", line 658, in requestJsonAndCheck
-    *self.__check(
-     ~~~~~~~~~~~~^
-        *self.requestJson(
-        ^^^^^^^^^^^^^^^^^^
-    ...<7 lines>...
-        )
-        ^
-    ),
-    ^
-  File "C:\open\flakeguard\.venv\Lib\site-packages\github\Requester.py", line 897, in __check
-    raise self.createException(status, responseHeaders, data)
-github.GithubException.UnknownObjectException: 404 {"message": "Not Found", "documentation_url": "https://docs.github.com/rest/repos/repos#get-a-repository", "status": "404"}
+sweep 2026-09-13: 3 tests, dry_run=False, action target=tusharshah21/FlakeGuard
+  test_restarting_during_transfer_raises_killed_worker platform_specific@0.95 gate=issue          -> issue: opened issue #1
+  test_shutdowns_cleanly                             chronic@0.85           gate=quarantine_pr  -> quarantine_pr: opened PR #2 (never merged by FlakeGuard)
+  test_handle_null_partitions_2                      not classified         gate=review         -> review: queued on issue #3
+  model calls this process: {'classify': 2, 'correlate': 0, 'draft': 2} (total 4)
