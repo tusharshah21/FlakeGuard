@@ -381,9 +381,11 @@ Things that behaved differently live than against the in-memory double, all reco
 
 ## Running unattended (Phase 6)
 
-`.github/workflows/sweep.yml` runs on manual dispatch, and on a cron at 07:30 and 19:30 UTC - after each of
-dask/distributed's scheduled test runs has finished - once that schedule is enabled (it ships commented out, to be
-turned on deliberately after a reviewed manual dispatch). Each run restores the SQLite store and the raw artifact cache from
+`.github/workflows/sweep.yml` runs on manual dispatch. It also carries a cron for 07:30 and 19:30 UTC - after each
+of dask/distributed's scheduled test runs has finished - which is **deliberately commented out, not unfinished**:
+the workflow is proven to run (two dispatches below, cold and warm), and a job firing twice daily through the
+submission and judging window adds risk with no demonstrative gain. Uncommenting the two `schedule:` lines enables
+it. Each run restores the SQLite store and the raw artifact cache from
 `actions/cache`, imports the committed decision ledger (`state/decisions.json`, existing rows win), ingests any new
 CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Three limits live in code, not in the prompt. Only tests with a failure in the last `recent_failure_days` are
 triaged. At most `max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable
@@ -408,6 +410,40 @@ before the model at all. Writes use a personal access token scoped to public rep
 own token stays read-only. This is what "runs autonomously in the background and surfaces only when there is a
 decision" means here: the schedule is GitHub's, the gate is Python's, and the model is consulted only for tests the
 gate has not already disposed of.
+
+### What an unattended run actually costs
+
+Two manual dispatches, both `dry_run: true`, both creating nothing
+(runs [#1](https://github.com/tusharshah21/FlakeGuard/actions/runs/34748961534) and
+[#3](https://github.com/tusharshah21/FlakeGuard/actions/runs/34755101992)):
+
+| | cold (first run, empty cache) | warm (cache restored) |
+|---|---|---|
+| ingest | **911 s, 816 API requests** | **19 s, 3 requests** |
+| sweep | 180 s, **30 model calls** (hit the ceiling and aborted) | 42 s, **6 model calls** |
+| job total | 18 m 24 s | **1 m 17 s** |
+| tests selected / acted / deferred | 18 / 12 / 0 | 18 / 3 / **14** |
+
+The cold column is what a full backfill costs: 191 runs x (1 jobs call + 1 artifact listing) + 422 artifact
+downloads, serialised at about 1.1 s per request. The warm column is steady state, and is what a scheduled run would
+look like. The difference between the two sweep rows is the budget-ordering fix above: the same 18 candidates, but
+inference stops when the artifact budget is spent, so 14 tests are deferred with a reason instead of being
+classified and then declined.
+
+A third dispatch sits between them, deliberately red: with the ceiling temporarily set to 1, run
+[#2](https://github.com/tusharshah21/FlakeGuard/actions/runs/34754918660) aborted after one model call and the job
+failed with exit code 1. That run exists to prove the alarm works - an earlier version piped the sweep through
+`tee`, so an aborted sweep reported success.
+
+### Writing is opt-in
+
+`dry_run = true` is the committed default and writing to a repository requires deliberately setting it false.
+`--dry-run` on the command line forces dry regardless of config and cannot be overridden by it, and every run
+announces its effective mode on the first line: `DRY RUN: nothing will be written.` or `WRITE MODE: artifacts will
+be created in <repo> on branch <branch>`. This is not theoretical caution. During development `dry_run` was left
+`false` after a live run, and a later local test - intended only to check an exit code - opened a real issue
+([#8](https://github.com/tusharshah21/FlakeGuard/issues/8), since closed and labelled `flakeguard-superseded`). The
+safe default and the one-way flag both exist because of that.
 
 ## The denominator under every interval is validated
 

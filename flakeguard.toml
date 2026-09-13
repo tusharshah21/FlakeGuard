@@ -33,7 +33,8 @@ window_runs = 50
 min_runs = 15                   # fewer runs in the window than this -> review, never act
 action_threshold = 0.75         # classifier confidence below this -> review, never act
 unquarantine_after_passes = 20  # a quarantined test with this many consecutive clean runs since quarantine is un-quarantined
-dry_run = false                 # writes go to scratch_repo/scratch_branch only; startup refuses anything else
+dry_run = true                  # SAFE DEFAULT. Writing to a repository is opt-in: set false deliberately, or pass
+                                # --dry-run to force dry regardless of this value. Startup prints the effective mode.
 recent_failure_days = 7         # the scheduled sweep triages tests that failed within this many days
 max_actions_per_sweep = 3       # new issues + quarantine PRs per sweep; the rest are deferred to the next sweep
 max_model_calls_per_sweep = 30  # hard ceiling on classify+correlate+draft calls; aborts the sweep, red and loud.

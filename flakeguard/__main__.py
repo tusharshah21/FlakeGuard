@@ -1,5 +1,5 @@
 """uv run python -m flakeguard ingest | health <fixture.json | test_id> | triage <fixture.json | test_id>
-                          | sweep [--fixtures a.json b.json] [--tests id ...] [--all-failing | --recent] [--as-of ISO8601]
+                          | sweep [--fixtures a.json b.json] [--tests id ...] [--all-failing | --recent] [--as-of ISO8601] [--dry-run]
                           | decisions [YYYY-MM-DD] | ledger export|import <file>"""
 import json
 import sys
@@ -59,7 +59,7 @@ elif cmd == "sweep":
         return out
     fixtures = opt("--fixtures")
     as_of = (opt("--as-of") or [None])[0]
-    r = configure(cfg, fixtures, as_of=as_of)
+    r = configure(cfg, fixtures, as_of=as_of, force_dry="--dry-run" in args)
     tests = opt("--tests") or list(r.fixtures) if fixtures else opt("--tests")
     if "--all-failing" in args:
         tests = r.store.failing_tests()

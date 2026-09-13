@@ -229,3 +229,30 @@ def test_artifact_budget_stops_inference_not_just_actions(world, monkeypatch):
     orch.rt().cfg.triage.max_actions_per_sweep = 3
     ts = run("2026-09-14", [PLATFORM])
     assert ts[0].outcome.kind == "issue" and calls["classify"] == 2
+
+
+def test_dry_run_flag_cannot_be_overridden_by_config(world):
+    """--dry-run is one-way: it only ever makes a run safer, whatever flakeguard.toml says."""
+    run, remote, store, _ = world
+    cfg = orch.rt().cfg if orch._rt else None
+    run("2026-09-12", [])
+    live_cfg = orch.rt().cfg
+    live_cfg.triage.dry_run = False                       # config says write
+    r = orch.configure(live_cfg, FIXTURES, remote=remote, store=Storage(":memory:"),
+                       as_of="2026-09-13T23:59:59Z", log=lambda *_: None, force_dry=True)
+    assert r.actions.dry is True and r.cfg.triage.dry_run is True
+    assert live_cfg.triage.dry_run is False               # the caller's config is not mutated
+    orch.sweep([PLATFORM], log=lambda *_: None)
+    assert remote.issues == [] and remote.prs == []
+
+
+def test_startup_announces_the_effective_mode(world):
+    run, remote, store, _ = world
+    run("2026-09-12", [])
+    lines = []
+    cfg = orch.rt().cfg
+    cfg.triage.dry_run = False
+    orch.configure(cfg, FIXTURES, remote=remote, store=store, as_of="2026-09-13T23:59:59Z", log=lines.append)
+    assert lines[0].startswith("WRITE MODE: artifacts will be created in someone/scratch on branch scratch")
+    orch.configure(cfg, FIXTURES, remote=remote, store=store, as_of="2026-09-13T23:59:59Z", log=lines.append, force_dry=True)
+    assert lines[-1] == "DRY RUN: nothing will be written. (forced by --dry-run)"

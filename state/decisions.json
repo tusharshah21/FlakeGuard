@@ -115,8 +115,8 @@
   "decided_at": "2026-09-25T06:00:00Z",
   "verdict": "platform_specific",
   "confidence": 0.92,
-  "action": "issue",
-  "reason": "Verdict platform_specific at confidence 0.92 clears action_threshold = 0.75 with 191 runs in the window; FlakeGuard will open an issue. -> opened issue #8",
+  "action": "operator_closed",
+  "reason": "Verdict platform_specific at confidence 0.92 clears action_threshold = 0.75 with 191 runs in the window; FlakeGuard will open an issue. -> opened issue #8 -> closed by the operators: unintended local write (dry_run was false); labelled flakeguard-superseded",
   "url": "https://github.com/tusharshah21/FlakeGuard/issues/8",
   "dry_run": 0
  }

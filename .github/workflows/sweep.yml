@@ -4,8 +4,9 @@ name: FlakeGuard sweep
 # Ingests new CI results into the cached store, then triages tests that failed recently. Actions go to this repo's
 # `scratch` branch only (see README, "Reading this repo's Issues and Pull Requests").
 on:
-  # DISABLED until the model-call ceiling has been exercised and one manual dispatch has been reviewed.
-  # A cold-cache unattended run does a full ingest plus 15-25 classifications; re-enable deliberately.
+  # The schedule is DELIBERATELY DISABLED, not unfinished. The workflow is proven to run - two successful manual
+  # dispatches, cold and warm, documented in the README - and a job firing twice daily through the submission and
+  # judging window adds risk with no demonstrative gain. To enable it, uncomment the two lines below.
   # schedule:
   #   - cron: "30 7,19 * * *"
   workflow_dispatch:

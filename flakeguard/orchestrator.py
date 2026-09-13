@@ -51,9 +51,13 @@ _rt: Runtime | None = None
 
 
 def configure(cfg: Config | None = None, fixture_paths: list[str] = (), remote: Remote | None = None,
-              store: Storage | None = None, as_of: str | None = None, log=print) -> Runtime:
+              store: Storage | None = None, as_of: str | None = None, log=print, force_dry: bool = False) -> Runtime:
     global _rt
     cfg = cfg or load()
+    if force_dry:
+        # --dry-run is one-way: it can only ever make a run safer, and no config value can switch it back on.
+        cfg = cfg.model_copy(deep=True)
+        cfg.triage.dry_run = True
     fixtures = {}
     for p in fixture_paths:
         fx = json.loads(Path(p).read_text(encoding="utf-8"))
@@ -70,6 +74,10 @@ def configure(cfg: Config | None = None, fixture_paths: list[str] = (), remote: 
             remote.head_sha(cfg.target.scratch_branch)
         except Exception as e:
             raise SystemExit(f"dry_run is off but scratch_branch {cfg.target.scratch_branch!r} does not exist in {cfg.target.scratch_repo}: {e}")
+    if cfg.triage.dry_run:
+        log("DRY RUN: nothing will be written." + (" (forced by --dry-run)" if force_dry else ""))
+    else:
+        log(f"WRITE MODE: artifacts will be created in {cfg.target.scratch_repo} on branch {cfg.target.scratch_branch}")
     today = (as_of or datetime.now(timezone.utc).isoformat())[:10]
     _rt = Runtime(cfg, store or Storage(cfg.ingest.db_path), GitHub(cfg.target.repo, cfg.ingest.cache_dir),
                   Actions(cfg, remote, log, as_of=as_of, today=today), fixtures, as_of)
