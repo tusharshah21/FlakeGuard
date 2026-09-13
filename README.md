@@ -145,6 +145,22 @@ PR runs was a regression, and every masked flake on `main` failed in 1-3 cells. 
 commit is therefore a strong prior on category before any probability is computed, and `stats.py` reports it as a
 first-class statistic.
 
+### Two findings from looking for hard cases
+
+**dask's CI environment was stable for the whole window.** An environment break - a fixed commit whose failures
+start on a date because a runner image, a transitive dependency or an upstream service moved - leaves a signature:
+zero failures before a boundary, a material rate after, across cells. We searched both long-lived commits
+(`40fcd99a8c`, 78 runs over 39 days; `dc182bda54`, 34 runs over 17 days). Failures run flat at ~3.5 per day, no
+day spikes, and no test's failures begin on a date. The statistic (`within_commit_over_time`) and the category
+(`environment_break`) are implemented; the data contains no instance; we did not fabricate one.
+
+**The roster inference holds up against measured data.** For every test that ever failed, we compared each cell's
+roster with the measured artifacts of that cell: in 1,380 of 1,401 (test, cell) pairs the test appears in every
+measured artifact where the roster says it runs. The 21 exceptions each differ by exactly one artifact, all in one
+Windows cell from one run whose `pytest.xml` was regenerated from stdout after a hard timeout. So the "mostly
+inferred denominator" is not the weak point it might look like, and we could not honestly build a conflict fixture
+where it misleads.
+
 ## Limitations
 
 - **Test-level history is 89 days deep.** GitHub retains artifacts for 90 days; runs outlive them. Anything
