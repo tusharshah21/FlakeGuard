@@ -167,8 +167,9 @@ def act(t: Triage) -> Outcome:
         out = r.actions.review(t.test_id, r.today, t.artifact)
     else:
         out = Outcome("noop", None, t.decision.reason)
+    recorded = out.kind if out.kind == "closed_by_human" else a   # the ledger records what happened, not what was intended
     r.store.record_decision(t.test_id, r.now, t.classification and t.classification.verdict,
-                            t.classification and t.classification.confidence, a, t.decision.reason, out.url, r.actions.dry)
+                            t.classification and t.classification.confidence, recorded, f"{t.decision.reason} -> {out.detail}", out.url, r.actions.dry)
     t.outcome = out
     return out
 

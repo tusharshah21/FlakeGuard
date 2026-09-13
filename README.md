@@ -358,6 +358,24 @@ Two sweeps on the same day create nothing new and cost no model calls (`tests/te
 GitHub double with every model call stubbed). The sweep accepts `--as-of` to replay history with a declared clock;
 the un-quarantine demonstration below uses it, and says so.
 
+### The live run (2026-09-13)
+
+Against this repository's `scratch` branch, `dry_run = false`, raw logs in `probe-results/live-sweep-*.txt`:
+
+| step | result |
+|---|---|
+| (a) sweep: platform case, chronic flake, ambiguous case | issue [#1](https://github.com/tusharshah21/FlakeGuard/issues/1) (platform_specific @ 0.95); quarantine PR [#2](https://github.com/tusharshah21/FlakeGuard/pull/2) (chronic @ 0.85); review-queue issue [#3](https://github.com/tusharshah21/FlakeGuard/issues/3), one comment (12 runs < `min_runs`, never reached the model). 4 model calls. |
+| (b) the same sweep, same day | all three `none` - "already triaged today". **0 artifacts, 0 model calls.** Review queue still one comment. |
+| (c) replay, clock at 2026-08-25 | `test_handle_null_partitions_2`, whose real last failure was 2026-08-24, classified chronic @ 0.85 on 156 runs -> quarantine PR [#4](https://github.com/tusharshah21/FlakeGuard/pull/4), titled `[REPLAY as of 2026-08-25]`. 2 model calls. |
+| (c) replay, clock at 2026-09-13 | 35 consecutive clean runs since quarantine >= 20 -> un-quarantine PR [#5](https://github.com/tusharshah21/FlakeGuard/pull/5), titled `[REPLAY 2026-08-25 -> 2026-09-13]`. **The agent reversed itself, on real data, with 0 model calls.** |
+| (d) a human closes issue #1; sweep with a next-day clock | verdict unchanged, gate says issue, action layer finds the closed issue -> `closed_by_human`, nothing recreated, disagreement recorded. |
+
+Total for the run: 8 model calls, roughly $0.10. Every PR targets `scratch`; `conftest.py` and `.flakeguard/quarantine.txt` are absent from `main` and from `scratch` itself.
+
+Two things behaved differently live than against the in-memory double, both recorded rather than hidden:
+- **The quarantine hook appears in both quarantine PRs** (#2 and #4). Each PR branches off `scratch`, which does not carry the hook until something merges, so each independently adds it. The two copies are byte-identical and merge cleanly, but "created exactly once" holds per merged state, not per open PR.
+- **The un-quarantine PR's diff is against an unmerged quarantine.** PR #5 removes the line relative to PR #4's branch; against `scratch`, where #4 never merged, its diff shows the list without the test. In a deployment the quarantine PR is merged before recovery is measured, so the diff reads as a removal.
+
 ## The denominator under every interval is validated
 
 Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster

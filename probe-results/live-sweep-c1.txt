@@ -1,0 +1,3 @@
+sweep 2026-08-25 (replay as of 2026-08-25T23:59:59Z): 1 tests, dry_run=False, action target=tusharshah21/FlakeGuard
+  test_handle_null_partitions_2                      chronic@0.85           gate=quarantine_pr  -> quarantine_pr: opened PR #4 (never merged by FlakeGuard)
+  model calls this process: {'classify': 1, 'correlate': 0, 'draft': 1} (total 2)
