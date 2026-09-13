@@ -136,6 +136,6 @@ def test_human_closed_artifacts_are_not_recreated(world):
         if x["title"] != "[FlakeGuard] Review queue":
             x["state"] = "closed"                        # a maintainer closes both
     ts = run("2026-09-14", [PLATFORM])
-    assert ts[0].outcome.kind == "closed_by_human" and len(remote.issues) == 2
+    assert ts[0].outcome.kind == "closed_by_human" and len(remote.issues) == 1   # nothing recreated
     # the flake is still recorded as quarantined in storage (the PR existed); the loop, not a new PR, decides its future
     assert len(remote.prs) == 1
