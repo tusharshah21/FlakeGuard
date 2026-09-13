@@ -135,6 +135,20 @@ stratifies first: per-cell counts are kept, a simple dispersion check (share of 
 OS, number of cells with any failure) decides whether failures are spread or concentrated, and only spread
 failures are pooled. Concentrated ones are a fifth category, *platform-specific*.
 
+## Architecture
+
+Two paths (ingest and triage), two surfaces (the deterministic pipeline and `explain`), one boundary between
+statistics and judgement. **Blue = deterministic Python. Orange = LLM call. Red = the gate, the only place a
+judgement becomes a write.**
+
+![FlakeGuard architecture](docs/architecture.svg)
+
+_Source: [`docs/architecture.md`](docs/architecture.md)._
+
+Every orange box sits inside a blue path: a model never touches the API, the database, or the decision to write.
+The first gate disposes of cases before any model is called; the second decides whether a verdict becomes an
+artifact. `explain` shares the tools and has no path to `ACT` at all.
+
 ### Zero always-failing tests is itself a finding
 
 Across 95 days of scheduled runs on `main` there were **zero** tests that failed at every run of a commit.
@@ -197,6 +211,25 @@ Every number in that sentence is real, and every signal it names is the right on
 history over the episode. That is a defensible wrong answer on the hardest case in the set, at a confidence the
 action gate would never act on, and it is the clearest demonstration we have that `conflicting_signals` does its
 job: a reviewer reading it knows exactly what to check. We have not tuned it away.
+
+#### A later reading suggests our own label may be the error
+
+We labelled this fixture `platform_specific` on the strength of the episode: at the most recent failing commit, all
+five failures are on `windows-latest`. The classifier said `regression`, and we recorded it as a miss. That score
+stands at 2 of 4, unrevised.
+
+But the `explain` surface, reading the same data and asked what the conflicting evidence was, narrated a mechanism
+we had not: four consecutive commits failing 17 of 17 cells, then a collapse at `3865fc878b` where the failure rate
+drops from 82/85 to 10/63 (shift -0.806), with the episode sitting in the recovery tail where only Windows had yet
+to catch up. On that reading the branch had a genuine cross-platform regression that was being fixed, and the
+Windows-only residue is its last stage rather than a platform quirk - which is to say the classifier's `regression`
+may have been right and our label wrong.
+
+We are not revising the score after the fact; a fixture relabelled once the answer is known is worth nothing. The
+honest report is that **ground truth here is genuinely hard**. A verdict on a branch mid-fix depends on where you
+stand in time, our label was drawn from one commit, and the evidence supports more than one defensible reading.
+That is a more useful result than either a clean win or a clean miss: it is why the action gate blocks this case at
+0.40 whoever turns out to be right, and why `explain` earns its place as a second look rather than a second opinion.
 
 ## LLM classification is not locally editable - a controlled experiment
 
