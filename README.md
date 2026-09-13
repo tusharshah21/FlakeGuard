@@ -19,6 +19,19 @@ were edited. Runs [30925383561](https://github.com/dask/distributed/actions/runs
 The volume of machine-generated changes is rising faster than review capacity. Triage that is automatic,
 evidence-based and reversible is how a CI signal stays trustworthy under that load.
 
+## Reading this repo's Issues and Pull Requests
+
+The Issues and Pull Requests tabs of this repository contain **agent-generated replay artifacts**: FlakeGuard ran
+against the historical CI data of `dask/distributed` and wrote its issues, quarantine PRs, un-quarantine PRs and
+review-queue entries here, into its own repository, because we do not own `dask/distributed` and never act on it.
+They are labelled `flakeguard-replay`, titled `[REPLAY ...]`, and each opens with a one-line disclaimer. Every PR
+targets the `scratch` branch - never `main` - and that is asserted in code, not configured: a PR against `main` would
+put the quarantine hook one merge away from this project's own test suite, so the action layer raises before any API
+call, and startup refuses live mode unless `scratch_branch` exists and is not `main`/`master`. The `scratch` branch
+carries three trivial tests under `tests/scratch_suite/` so the quarantine PRs have real files to sit beside; the
+quarantine list and the hook exist only on `scratch`-derived branches (a test asserts they are absent from `main`).
+No action of any kind was ever taken against `dask/distributed`.
+
 ## Setup
 
 ```sh
@@ -299,10 +312,11 @@ implements both.
 
 ## Acting, and knowing when not to (Phase 5)
 
-**The analysis target and the action target are different repositories, on purpose.** FlakeGuard analyses
-`dask/distributed`, a public repository we do not own, and never opens anything there. Every issue and pull request
-goes to `target.scratch_repo`, a repository the operator owns. `dry_run = true` is the default; turning it off with
-`scratch_repo` unset or equal to the analysis target is refused at startup.
+**The analysis target and the write target are different, on purpose.** FlakeGuard analyses `dask/distributed`, a
+public repository we do not own, and never opens anything there. Every issue and pull request goes to
+`target.scratch_repo` (this repository) and every PR targets `target.scratch_branch` (`scratch`). `dry_run = true` is
+the default; turning it off is refused at startup unless the write target differs from the analysis target and the
+scratch branch exists and is not `main`/`master`. The PR path re-asserts the base branch before any API call.
 
 **The gate is plain Python** (`flakeguard/gate.py`) - not a tool, not model-controlled. In order: an overridden test
 is never acted on; one decision per test per day (hard idempotency); fewer than `min_runs` runs -> review; classifier
