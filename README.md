@@ -185,33 +185,66 @@ history over the episode. That is a defensible wrong answer on the hardest case 
 action gate would never act on, and it is the clearest demonstration we have that `conflicting_signals` does its
 job: a reviewer reading it knows exactly what to check. We have not tuned it away.
 
-### The trap case: a prompt fix that was tried, measured, and reverted
+## LLM classification is not locally editable - a controlled experiment
 
-The trap miss looked like an underspecified definition: the prompt said an environment break is failures beginning
-"after a period of none" and the evidence block shows a 0/9 to 9/9 jump *between* commits without saying that the
-definition means *within* one. We added one sentence - "The boundary must fall WITHIN one commit's runs; a jump
-from 0/n to n/n BETWEEN commits is a regression signature, not an environment break" - and re-ran the full set ten
-times (`probe-results/eval-phase3-sonnet45-10runs-postfix.txt`).
+This is the strongest empirical result in the project, so it gets its own section. We tried to improve the score,
+succeeded on the target, broke two unrelated cases, and reverted to the worse number.
+
+**Hypothesis.** A one-sentence clarification to one category's definition is a local edit: it changes the verdict
+on the case that definition was misread on, and nothing else.
+
+**Method.** The trap case (a pre-existing test that fails 9/9 in the 9 cells where it exists) was being called
+`environment_break` because the evidence shows a 0/9 to 9/9 jump between commits and the definition said only
+"failures begin after a period of none". We appended one sentence to that definition and nothing else:
+
+```diff
+   failures before the boundary and a material rate after), across cells rather than one platform.
++  The boundary must fall WITHIN one commit's runs; a jump from 0/n to n/n BETWEEN commits
++  (largest_shift_between_commits) is a regression signature, not an environment break.
+```
+
+Then we re-ran the **entire** fixture set, not just the trap: 8 fixtures x 10 runs, temperature 0, same model,
+same evidence blocks, same invented-number check (every numeric token in the model's prose must appear verbatim in
+the evidence it was given). Raw outputs: `probe-results/eval-phase3-sonnet45-10runs.txt` (before) and
+`probe-results/eval-phase3-sonnet45-10runs-postfix.txt` (after).
+
+**Result.**
 
 | case | before (10 runs) | after (10 runs) |
 |---|---|---|
-| trap: 9/9 of 9 present cells | environment_break x10, 0.95 | **regression x10, 0.95** - fixed, reasoning correct |
-| ambiguous | unclear x10, 0.40 | unclear x6, **flaky x4 at 0.75** - reasoning self-contradictory |
-| PR-branch platform case | regression x10, 0 invented numbers | regression x10, **invented numbers in 7 of 10** (`100` as a percentage; once `0.159`, `0.965`) |
-| other five | unchanged | unchanged |
-| conflict score | 2/4 | 3/4 |
-| invented numbers, 80 outputs | 0 | 9 |
+| trap: 9/9 of 9 present cells | environment_break x10 @ 0.95 | **regression x10 @ 0.95** - target fixed |
+| ambiguous: 1 failure in 45 obs, 44 inferred | unclear x10 @ 0.40 | unclear x6, **flaky x4 @ 0.75** - exactly on the action threshold |
+| PR-branch platform case | regression x10, 0 invented numbers | regression x10, **invented numbers in 7 of 10 outputs** |
+| the other five | unchanged | unchanged |
+| conflict-set score | 2/4 | 3/4 |
+| invented numbers across 80 outputs | **0** | **9** (`100` as a percentage of a 1.00 share, 7x; `0.159` and `0.965`, in no evidence block) |
 
-The rule we set beforehand was: if the change perturbs any other case it was not a clarification. It perturbed
-two, one of them onto the action threshold. **Reverted. The headline stays 2/4 and 0 invented numbers.** The
-attempt is kept in the repo because it is itself a finding: at temperature 0, one sentence added to one verdict's
-definition changed an unrelated verdict and broke number discipline elsewhere. That brittleness is the reason the
-action gate is plain Python and not a prompt.
+The trap reasoning went from
 
-What the model adds over the rule, on this evidence: it catches concentration the pooled rate hides (2 of 3
-platform cases), it never fabricates a statistic, and every verdict carries a `conflicting_signals` line that
-says what pointed the other way - which is the part a human reviewer reads. The action gate in Phase 5 sits
-on top of both, so a 0.40 verdict never touches the repository regardless of who produced it.
+> "At commit acf771d460, failures began across all 9 present cells after a period of zero failures (0/9 -> 9/9),
+> with shift +1.000 exceeding the onset threshold of 0.2. The failures are not concentrated (top_cell_share 0.11,
+> top_os_share 0.44), indicating an environment break rather than platform-specific issue."
+
+to
+
+> "The episode wilson95 lower bound of 0.701 exceeds the regression threshold of 0.5, and failures cover all 9
+> present cells (cells_failed 9 of cells_present 9) with concentrated False, meeting the regression criteria. The
+> shift from 0/9 to 9/9 between commits is a regression signature, not an environment break which requires failure
+> onset within a single commit's runs."
+
+which is exactly what we wanted. Meanwhile the ambiguous case, untouched by the edit, produced in 4 of 10 runs:
+
+> "The episode wilson95 upper bound of 0.189 exceeds the flaky threshold of 0.1, but with only 1 measured failure
+> out of 26 total observations (25 inferred), the evidence is weak. The test shows recovery and failures are not
+> concentrated, consistent with flaky behavior, though chronic threshold is not met."
+
+- verdict `flaky`, confidence 0.75, from a sentence that states the flaky threshold is not met.
+
+**Conclusion.** LLM classification is not locally editable. One sentence in one definition moved an unrelated
+verdict onto the action threshold with self-contradictory reasoning and broke number discipline in a third case.
+We reverted and kept 2/4 with zero fabrication over 3/4 with nine fabricated numbers. This is the measured argument
+for the action gate living in Python and not in the prompt, and it is why the classifier prompt is now frozen: any
+change requires this full protocol - every fixture, ten runs, invented-number counts - before it can land.
 
 ### Two findings from looking for hard cases
 
@@ -242,6 +275,11 @@ could not honestly build a conflict fixture where it misleads.
 - **Test-level history is 89 days deep.** GitHub retains artifacts for 90 days; runs outlive them. Anything
   older is job-level only (which cell failed, not which test).
 - GitHub Actions and pytest JUnit XML only. One workflow per repo.
+- **Truncated artifacts are not detected.** When pytest dies mid-session the artifact holds a fraction of the
+  cell's usual testcases (run `28571672400`: 1,152 of ~2,700). The failure mode is safe - tests that never ran
+  produce no observation, never a false pass - but `stats.py` does not flag or down-weight a run-cell whose
+  testcase count is far below that cell's norm; such a run simply contributes fewer observations. A detector is
+  straightforward (compare count to the cell's roster size) and is not built.
 - **Inferred denominators inherit the roster assumption.** A pass in a succeeded cell is inferred from "the job
   succeeded and the cell's nearest sampled roster contains this test", not read from a file. Most of any test's
   `n` is inferred - the flake fixture is 156 measured / 2111 inferred - so its Wilson interval is only as sound as
