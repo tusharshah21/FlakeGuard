@@ -170,11 +170,43 @@ temperature 0 (`scripts/eval_classifier.py --runs 10`, Claude Sonnet 4.5 on Bedr
 across the ten runs; zero invented numbers in 80 outputs (every numeric token in the model's prose was checked
 against the evidence it was given).
 
-The two misses are real and stay in the table. On the PR-branch case the model let the test-level pooled interval
-(which covers the earlier 17/17 commits) outweigh the episode's Windows-only concentration; its own
-`conflicting_signals` field names the platform evidence it then under-weighted. On the trap case it read the
-between-commit jump from 0/9 to 9/9 as an environment break; the definition asks for a within-commit boundary.
-Neither has been tuned away: the pre-commitment was to report the number we got.
+### The classifier's most instructive failure
+
+The PR-branch case is kept as a permanent miss. The branch (`venv_cluster`) had a real regression first - four
+commits at 17/17 - then two commits where only the five Windows cells still failed. The model saw both and, ten
+times out of ten, wrote this in `conflicting_signals` before choosing `regression` at 0.40:
+
+> "The episode is concentrated (top_os windows-latest share 1.00) pointing toward platform_specific. The pooled
+> wilson95 [0.541, 0.696] lower bound 0.541 meets regression threshold and cells_failed 17 of cells_present 17
+> shows broad impact. The largest shift -0.806 shows improvement rather than degradation."
+
+Every number in that sentence is real, and every signal it names is the right one; it then weighed the pooled
+history over the episode. That is a defensible wrong answer on the hardest case in the set, at a confidence the
+action gate would never act on, and it is the clearest demonstration we have that `conflicting_signals` does its
+job: a reviewer reading it knows exactly what to check. We have not tuned it away.
+
+### The trap case: a prompt fix that was tried, measured, and reverted
+
+The trap miss looked like an underspecified definition: the prompt said an environment break is failures beginning
+"after a period of none" and the evidence block shows a 0/9 to 9/9 jump *between* commits without saying that the
+definition means *within* one. We added one sentence - "The boundary must fall WITHIN one commit's runs; a jump
+from 0/n to n/n BETWEEN commits is a regression signature, not an environment break" - and re-ran the full set ten
+times (`probe-results/eval-phase3-sonnet45-10runs-postfix.txt`).
+
+| case | before (10 runs) | after (10 runs) |
+|---|---|---|
+| trap: 9/9 of 9 present cells | environment_break x10, 0.95 | **regression x10, 0.95** - fixed, reasoning correct |
+| ambiguous | unclear x10, 0.40 | unclear x6, **flaky x4 at 0.75** - reasoning self-contradictory |
+| PR-branch platform case | regression x10, 0 invented numbers | regression x10, **invented numbers in 7 of 10** (`100` as a percentage; once `0.159`, `0.965`) |
+| other five | unchanged | unchanged |
+| conflict score | 2/4 | 3/4 |
+| invented numbers, 80 outputs | 0 | 9 |
+
+The rule we set beforehand was: if the change perturbs any other case it was not a clarification. It perturbed
+two, one of them onto the action threshold. **Reverted. The headline stays 2/4 and 0 invented numbers.** The
+attempt is kept in the repo because it is itself a finding: at temperature 0, one sentence added to one verdict's
+definition changed an unrelated verdict and broke number discipline elsewhere. That brittleness is the reason the
+action gate is plain Python and not a prompt.
 
 What the model adds over the rule, on this evidence: it catches concentration the pooled rate hides (2 of 3
 platform cases), it never fabricates a statistic, and every verdict carries a `conflicting_signals` line that
@@ -190,12 +222,20 @@ zero failures before a boundary, a material rate after, across cells. We searche
 day spikes, and no test's failures begin on a date. The statistic (`within_commit_over_time`) and the category
 (`environment_break`) are implemented; the data contains no instance; we did not fabricate one.
 
-**The roster inference holds up against measured data.** For every test that ever failed, we compared each cell's
-roster with the measured artifacts of that cell: in 1,380 of 1,401 (test, cell) pairs the test appears in every
-measured artifact where the roster says it runs. The 21 exceptions each differ by exactly one artifact, all in one
-Windows cell from one run whose `pytest.xml` was regenerated from stdout after a hard timeout. So the "mostly
-inferred denominator" is not the weak point it might look like, and we could not honestly build a conflict fixture
-where it misleads.
+## The denominator under every interval is validated
+
+Most of any test's observations are inferred passes: the job succeeded, and the cell's nearest sampled roster
+says the test runs there. Every Wilson interval in the system rests on that inference, so we checked it against
+the data that does not depend on it. For every test that ever failed, and every cell in its roster, we asked: in
+the artifacts we actually parsed for that cell, is the test always present?
+
+**1,380 of 1,401 (test, cell) pairs: always present - 98.5%.** The 21 exceptions are not scattered. All 21 come
+from a single artifact: run `28571672400`, cell `windows-latest-py310-test-ci-notci1`, 2026-07-02 07:00 UTC, a
+`pytest.xml` holding 1,152 testcases against the cell's usual ~2,700 - pytest died mid-session and the tests
+simply never ran. No disagreement clusters by date, by test, or by any other cell, and none is a test that was
+conditionally skipped where the roster expected it. A truncated artifact also fails safe: absent tests produce no
+observation at all, never a false pass. This is why the "mostly inferred" denominator is sound here, and why we
+could not honestly build a conflict fixture where it misleads.
 
 ## Limitations
 
