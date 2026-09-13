@@ -56,12 +56,68 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* The two failing cells breathe, so the eye lands on them before reading a word. */
+/* Every cell can be hovered to read its matrix name, so lift it slightly under the cursor. */
+.cell {
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1),
+    opacity 0.18s ease;
+}
+.cell:hover {
+  transform: scale(1.28);
+  opacity: 1;
+  z-index: 1;
+}
+
+/*
+  One orchestrated page-load sequence, not scattered effects. It replays the run: the text settles, the matrix
+  fills cell by cell the way a CI matrix actually completes, the two failing cells land last and flare, the word
+  "red" in the headline turns with them, and the verdict line arrives after.
+
+  Every animation is declared only inside this query and every keyframe omits its `to` state, so the resting
+  style *is* the element's normal style. With reduced motion — or if anything fails — the page renders finished.
+*/
 @media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.75s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+  }
+  .cell {
+    animation: cell-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+  }
   .cell-fail {
-    animation: flag 2.6s ease-in-out infinite;
+    animation:
+      cell-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) backwards,
+      flare 0.6s ease-out backwards,
+      flag 2.8s ease-in-out 2.4s infinite;
+  }
+  .redden {
+    animation: redden 0.5s ease-out 1.55s backwards;
   }
 }
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes cell-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
+/* The two failures announce themselves once, then settle into a slow pulse. */
+@keyframes flare {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-fail) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
 @keyframes flag {
   0%,
   100% {
@@ -69,5 +125,11 @@ body {
   }
   50% {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-fail) 22%, transparent);
+  }
+}
+
+@keyframes redden {
+  from {
+    color: var(--color-ink);
   }
 }
