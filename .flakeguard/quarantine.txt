@@ -1,0 +1,2 @@
+# Tests quarantined by FlakeGuard. One id per line. Remove a line to un-quarantine.
+distributed.shuffle.tests.test_shuffle::test_handle_null_partitions_2
