@@ -43,6 +43,7 @@ class Triage(BaseModel):
     dry_run: bool
     recent_failure_days: int
     max_actions_per_sweep: int
+    max_model_calls_per_sweep: int
 
 
 class Overrides(BaseModel):

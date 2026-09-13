@@ -68,7 +68,11 @@ elif cmd == "sweep":
         since = ((datetime.fromisoformat(as_of.replace("Z", "+00:00")) if as_of else datetime.now(timezone.utc))
                  - timedelta(days=cfg.triage.recent_failure_days)).strftime("%Y-%m-%d")
         tests = r.store.recently_failing_tests(since)
-    sweep(tests)
+    from .classifier import ModelBudgetExceeded
+    try:
+        sweep(tests)
+    except ModelBudgetExceeded as e:
+        sys.exit(f"FlakeGuard aborted: {e}")   # non-zero exit: the Actions run goes red rather than silently expensive
 elif cmd == "ledger":
     # ledger export <file> | ledger import <file>  - the decision ledger is the state the gate reads; CI inherits it from here
     from .storage import Storage

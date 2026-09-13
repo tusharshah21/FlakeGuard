@@ -18,6 +18,18 @@ VERDICTS = ("flaky", "regression", "platform_specific", "environment_break", "ch
 MODEL_CALLS = {"classify": 0, "correlate": 0, "draft": 0}   # incremented at every structured_output call
 
 
+class ModelBudgetExceeded(RuntimeError):
+    """Raised when a sweep reaches max_model_calls_per_sweep. Aborts the sweep; never silently continues."""
+
+
+def spend(kind: str, ceiling: int | None) -> None:
+    """Count one model call and stop the sweep if the ceiling is reached. Every structured_output call goes through here."""
+    total = sum(MODEL_CALLS.values())
+    if ceiling is not None and total >= ceiling:
+        raise ModelBudgetExceeded(f"max_model_calls_per_sweep = {ceiling} reached after {total} calls {MODEL_CALLS}; sweep aborted")
+    MODEL_CALLS[kind] += 1
+
+
 class Classification(BaseModel):
     verdict: Literal["flaky", "regression", "platform_specific", "environment_break", "chronic", "unclear"]
     confidence: float = Field(ge=0, le=1)
@@ -116,6 +128,6 @@ def make_agent(cfg: Config) -> Agent:
 def classify(h: TestHealth, cfg: Config, agent: Agent | None = None) -> tuple[Classification, str]:
     """Returns the classification and the exact evidence text the model saw."""
     evidence = render_evidence(h, cfg)
-    MODEL_CALLS["classify"] += 1
+    spend("classify", cfg.triage.max_model_calls_per_sweep)
     result = (agent or make_agent(cfg)).structured_output(Classification, prompt=evidence)
     return result, evidence

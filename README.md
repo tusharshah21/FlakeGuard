@@ -381,13 +381,17 @@ Things that behaved differently live than against the in-memory double, all reco
 
 ## Running unattended (Phase 6)
 
-`.github/workflows/sweep.yml` runs on a cron at 07:30 and 19:30 UTC - after each of dask/distributed's scheduled
-test runs has finished - and on manual dispatch. Each run restores the SQLite store and the raw artifact cache from
+`.github/workflows/sweep.yml` runs on manual dispatch, and on a cron at 07:30 and 19:30 UTC - after each of
+dask/distributed's scheduled test runs has finished - once that schedule is enabled (it ships commented out, to be
+turned on deliberately after a reviewed manual dispatch). Each run restores the SQLite store and the raw artifact cache from
 `actions/cache`, imports the committed decision ledger (`state/decisions.json`, existing rows win), ingests any new
-CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Two limits
-live in code, not in the prompt: only tests with a failure in the last 7 days are triaged, and at most
-`max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable cases are recorded as
-`deferred` and picked up next time. Writes use a personal access token scoped to public repositories; the workflow's
+CI results, sweeps the tests that failed within `recent_failure_days`, and saves state for the next run. Three limits live in code, not in the prompt. Only tests with a failure in the last `recent_failure_days` are
+triaged. At most `max_actions_per_sweep` new issues or quarantine PRs are created per sweep; further actionable
+cases are recorded as `deferred` and picked up next time. And `max_model_calls_per_sweep` is a hard ceiling on
+model calls - classification, correlation and drafting alike, since the artifact cap does not bound inference: if a
+cache restore fails and the sweep re-triages everything unattended, the run stops at the ceiling, records an
+`aborted` row in the ledger naming the count reached, and exits non-zero so the Actions run goes visibly red rather
+than quietly expensive. Writes use a personal access token scoped to public repositories; the workflow's
 own token stays read-only. This is what "runs autonomously in the background and surfaces only when there is a
 decision" means here: the schedule is GitHub's, the gate is Python's, and the model is consulted only for tests the
 gate has not already disposed of.

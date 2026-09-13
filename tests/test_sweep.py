@@ -171,3 +171,33 @@ def test_action_cap_defers_the_rest_to_the_next_sweep(world):
     orch.configure(orch.rt().cfg, FIXTURES, remote=orch.rt().actions.remote, store=store2, as_of="2026-09-14T23:59:59Z", log=lambda *_: None)
     ts = orch.sweep([PLATFORM], log=lambda *_: None)
     assert ts[0].outcome.kind == "issue"
+
+
+def test_model_call_ceiling_aborts_the_sweep_loudly(world, monkeypatch):
+    """The cap counts model calls, not artifacts: a runaway unattended sweep must go red, not quietly expensive."""
+    from flakeguard.classifier import MODEL_CALLS, ModelBudgetExceeded, spend
+
+    run, remote, store, _ = world
+    monkeypatch.setattr(orch, "classify", lambda h, cfg, agent=None: (
+        spend("classify", cfg.triage.max_model_calls_per_sweep),
+        Classification(verdict=VERDICTS[h.test_id][0], confidence=VERDICTS[h.test_id][1],
+                       primary_signal="s", conflicting_signals="none", reasoning="r"), "EVIDENCE")[1:])
+    for k in MODEL_CALLS:
+        MODEL_CALLS[k] = 0
+    orch.load  # noqa: B018
+    cfg_holder = []
+
+    def run_capped(cap, tests):
+        r = orch.configure(orch.rt().cfg if orch._rt else None, FIXTURES, remote=remote, store=store,
+                           as_of="2026-09-13T23:59:59Z", log=lambda *_: None)
+        r.cfg.triage.max_model_calls_per_sweep = cap
+        cfg_holder.append(r.cfg)
+        return orch.sweep(tests, log=lambda *_: None)
+
+    run("2026-09-12", [])                      # prime the runtime/config
+    with pytest.raises(ModelBudgetExceeded, match="max_model_calls_per_sweep = 1"):
+        run_capped(1, [FLAKE, PLATFORM])
+    assert sum(MODEL_CALLS.values()) == 1      # stopped at the ceiling, did not overshoot
+    assert store.decisions()[-1]["action"] == "aborted"
+    assert "sweep aborted" in store.decisions()[-1]["reason"]
+    assert len(remote.prs) == 1                # the first case acted before the ceiling; the second never ran

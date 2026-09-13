@@ -15,7 +15,7 @@ from strands import tool
 
 from .actions import PROTECTED_BASES, Actions, GitHubRemote, Outcome, Remote
 from .baseline import episode
-from .classifier import MODEL_CALLS, Classification, classify, render_evidence
+from .classifier import MODEL_CALLS, Classification, ModelBudgetExceeded, classify, render_evidence
 from .config import Config, load
 from .correlation import Correlation, correlate
 from .drafter import draft
@@ -221,7 +221,15 @@ def sweep(test_ids: list[str], log=print) -> list[Triage]:
     results = []
     budget = [r.cfg.triage.max_actions_per_sweep]
     for test_id in test_ids:
-        t = triage(test_id)
+        try:
+            t = triage(test_id)
+        except ModelBudgetExceeded as e:
+            # Hard stop. Record it where the gate and the operator will both see it, then fail loudly: an unattended
+            # sweep that runs away is worse than one that goes red.
+            r.store.record_decision(test_id, r.now, None, None, "aborted", str(e), None, r.actions.dry)
+            log(f"  ABORTED at {test_id}: {e}")
+            log(f"  model calls this process: {dict(MODEL_CALLS)} (total {sum(MODEL_CALLS.values())})")
+            raise
         out = act(t, budget)
         v = f"{t.classification.verdict}@{t.classification.confidence:.2f}" if t.classification else "not classified"
         log(f"  {test_id.split('::')[-1]:50s} {v:22s} gate={t.decision.action:14s} -> {out.kind}: {out.detail}")
