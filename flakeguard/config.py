@@ -13,6 +13,12 @@ class Target(BaseModel):
     exclude_cell_prefixes: list[str]
     same_commit_event: str
     same_commit_branch: str
+    # How a GitHub job name maps onto its matrix cell, which is also the name of its JUnit artifact. Every
+    # repository names matrix jobs differently, so this is configuration rather than code. The default matches
+    # dask/distributed; flakeguard.toml carries worked examples for other shapes.
+    cell_pattern: str = r"^(?P<cell>\S+ \S+ \S+)(?: (?P<partition>.+))?$"
+    cell_join: str = "-"
+    cell_filter: str = ""
 
 
 class Ingest(BaseModel):

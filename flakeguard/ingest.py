@@ -1,19 +1,47 @@
 """Ingestion: GitHub Actions runs -> per-cell job conclusions -> JUnit artifacts -> observations. No LLM here."""
 import io
+import re
 import zipfile
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from xml.etree import ElementTree
 
-from .config import Config
+from .config import Config, Target
 from .github import GitHub
 from .storage import Storage
 
 
-def cell_of(job_name: str) -> str | None:
-    """dask's job name is '{os} {env} {task} {partition...}'; the artifact is named with '-' and the partition joined."""
-    p = job_name.split(" ")
-    return "-".join(p[:3] + ["".join(p[3:])]) if len(p) >= 4 else None
+class CellPatternError(ValueError):
+    """The configured cell_pattern did not match any job in the workflow. Ingestion would silently find nothing."""
+
+
+@lru_cache(maxsize=8)
+def _compiled(pattern: str) -> re.Pattern:
+    rx = re.compile(pattern)
+    if "cell" not in rx.groupindex:
+        raise CellPatternError(f"cell_pattern must contain a named group (?P<cell>...): {pattern!r}")
+    return rx
+
+
+def cell_of(job_name: str, t: Target) -> str | None:
+    """Map a GitHub job name onto the matrix cell it belongs to, which is also its artifact name.
+
+    Every repository names matrix jobs differently, so the mapping is `[target] cell_pattern` in flakeguard.toml
+    rather than code. The named group `cell` is the result; any other named groups are joined with cell_join, which
+    is how dask's four-part name ("ubuntu-latest py312 test-ci not ci1") collapses onto its artifact
+    ("ubuntu-latest-py312-test-ci-notci1"). Returns None for jobs that are not matrix cells at all.
+    """
+    m = _compiled(t.cell_pattern).match(job_name)
+    if not m:
+        return None
+    groups = m.groupdict()
+    # The `cell` group keeps its words, joined by cell_join. Any further named groups are suffixes whose internal
+    # spaces are dropped entirely, which is how dask's "not ci1" becomes "notci1".
+    parts = [t.cell_join.join(groups.pop("cell").split())]
+    parts += ["".join(v.split()) for v in groups.values() if v]
+    cell = t.cell_join.join(parts)
+    return cell if t.cell_filter in cell else None
 
 
 # A test id can appear more than once in one JUnit file (pytest emits a second <testcase> for a teardown error).
@@ -69,21 +97,23 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
     log(f"{len(runs)} completed {t.same_commit_event} runs of {t.workflow} on {t.same_commit_branch} since {since}")
 
     def is_pooled_cell(c):
-        return c and "-test-" in c and not c.startswith(tuple(t.exclude_cell_prefixes))
+        return c is not None and not c.startswith(tuple(t.exclude_cell_prefixes))
 
     def run_fields(r):
         return {"run_id": r["id"], "head_sha": r["head_sha"], "branch": r["head_branch"],
                 "event": r["event"], "started_at": r["run_started_at"]}
 
+    matched_any = False
     counts, run_cells, obs, collapses = defaultdict(int), [], [], Counter()
     quarantined = frozenset(t for t, _ in store.quarantined_tests())
     succeeded = defaultdict(list)  # cell -> [(started_at, run, artifact)] for roster sampling
     for r in runs:
         arts = {a["name"]: a for a in gh.artifacts(r["id"]) if not a["expired"]}
         for j in gh.jobs(r["id"]):
-            c = cell_of(j["name"])
+            c = cell_of(j["name"], t)
             if not is_pooled_cell(c):
                 continue
+            matched_any = True
             rc = {**run_fields(r), "cell": c, "job_conclusion": j["conclusion"]}
             if j["conclusion"] == "success":
                 rc["status"] = "roster"
@@ -106,6 +136,10 @@ def ingest(cfg: Config, store: Storage, gh: GitHub, log=print) -> dict:
                     obs += [{**run_fields(r), "cell": c, "test_id": tid, "outcome": o, "source": "artifact"} for tid, o in rows]
             counts[rc["status"]] += 1
             run_cells.append(rc)
+    if runs and not matched_any:
+        raise CellPatternError(
+            f"[target] cell_pattern {t.cell_pattern!r} matched no job in {t.workflow}, so there is nothing to ingest. "
+            f"Check a job name with: gh api repos/{t.repo}/actions/runs/<id>/jobs --jq '.jobs[].name'")
     store.upsert_run_cells(run_cells)
     store.upsert_observations(obs)
     log(f"run-cells: {dict(counts)}; artifact observations: {len(obs)}; duplicate testcase collapses: {dict(collapses)}")

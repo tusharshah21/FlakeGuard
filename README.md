@@ -70,6 +70,27 @@ Six verdicts: **regression**, **flaky**, **chronic**, **platform_specific**, **e
 The correlation agent sees only the *failing* commit's metadata and file list, never the fix commit's.
 [`tests/test_leakage.py`](tests/test_leakage.py) was committed before the agent existed and asserts it.
 
+### Pointing it at another repository
+
+Nothing about FlakeGuard is specific to dask/distributed except one thing: how a GitHub job name maps onto its
+matrix cell, which is also the name of the JUnit artifact that job uploads. Every repository names matrix jobs
+differently, so that mapping is configuration:
+
+```toml
+[target]
+repo = "your-org/your-repo"
+workflow = "ci.yml"
+cell_pattern = '^test \((?P<cell>[^)]+)\)$'   # for jobs named "test (ubuntu-latest, 3.12)"
+cell_filter = ""                               # keep only cells containing this substring
+```
+
+The named group `cell` is required. Any further named groups are treated as suffixes, which is how dask's
+four-part `"ubuntu-latest py312 test-ci not ci1"` collapses onto its artifact `ubuntu-latest-py312-test-ci-notci1`.
+A pattern that matches no job aborts the ingest with an error naming the fix, rather than silently storing nothing.
+`tests/test_cell_pattern.py` covers dask's shape and three others.
+
+So integration is: edit `flakeguard.toml`, copy `.github/workflows/sweep.yml`, set two secrets. No Python, no fork.
+
 ### The data contract
 
 Every observation, whether read from storage or loaded from `fixtures/*.json`, has exactly this shape:
@@ -189,6 +210,10 @@ after a live run and a later local test opened a real issue
   quote numbers as given. Correct arithmetic, but it is the one place a model still computes.
 - **The conflict set is small and narrow** — four cases, three of them the same failure mode.
 - GitHub Actions and pytest JUnit XML only. One workflow per repository.
+- **The target repository must re-run its suite on unchanged commits.** The statistics need many independent runs
+  of identical code to turn a failure rate into a measurement rather than a guess; dask does this twice daily by
+  cron. A repository that runs CI once per commit gives n=1 per commit, and almost everything returns `unclear`.
+  That is a property of the data, not something configuration can fix.
 
 ## Prior art
 

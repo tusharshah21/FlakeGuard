@@ -10,6 +10,26 @@ exclude_cell_prefixes = ["ubuntu-latest-mindeps-"]  # distinct dependency env; n
 same_commit_event = "schedule"                      # cron re-runs of identical code on main
 same_commit_branch = "main"
 
+# How a GitHub job name maps onto its matrix cell, which is also the name of the JUnit artifact that job uploads.
+# This is the one thing every repository does differently, so it lives here rather than in code.
+#   - the named group `cell` is required; its words are joined with cell_join
+#   - any further named groups are suffixes, and their internal spaces are dropped
+#   - cell_filter keeps only cells containing that substring; "" keeps everything
+#   - a pattern that matches no job aborts the ingest with an error rather than silently storing nothing
+#
+# dask/distributed: "ubuntu-latest py312 test-ci not ci1"  ->  "ubuntu-latest-py312-test-ci-notci1"
+# Single quotes: TOML literal strings, so regex backslashes need no escaping.
+cell_pattern = '^(?P<cell>\S+ \S+ \S+)(?: (?P<partition>.+))?$'
+cell_join = "-"
+cell_filter = "-test-"
+#
+# Other shapes, for reference. A typical GitHub matrix job, "test (ubuntu-latest, 3.12)":
+#   cell_pattern = '^test \((?P<cell>[^)]+)\)$'
+#   cell_filter  = ""
+# A job named after its platform, "pytest-ubuntu-py311":
+#   cell_pattern = '^(?P<cell>pytest-.+)$'
+#   cell_filter  = ""
+
 [ingest]
 days = 95                        # backfill window; artifacts only survive ~90 of them
 cache_dir = ".cache/artifacts"   # raw zips + API listings; parsing never re-downloads
